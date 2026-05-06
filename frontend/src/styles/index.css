@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-family: 'Inter', system-ui, sans-serif; }
+  body { @apply antialiased; }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium
+           transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary { @apply btn bg-terracotta-600 text-white hover:bg-terracotta-700 shadow-soft; }
+  .btn-secondary { @apply btn bg-sand-100 text-sand-800 hover:bg-sand-200 border border-sand-200; }
+  .btn-ghost { @apply btn text-sand-700 hover:bg-sand-100; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
+
+  .card {
+    @apply bg-white rounded-xl border border-sand-200 shadow-soft;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 bg-white border border-sand-300 rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-terracotta-400 focus:border-transparent
+           placeholder:text-sand-400;
+  }
+
+  .label { @apply block text-sm font-medium text-sand-800 mb-1; }
+
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .nav-link {
+    @apply px-3 py-2 rounded-lg text-sm font-medium text-sand-700 hover:bg-sand-100 transition-colors;
+  }
+  .nav-link-active { @apply bg-terracotta-50 text-terracotta-700; }
+
+  .section-title { @apply text-2xl md:text-3xl font-semibold text-sand-900; }
+  .section-subtitle { @apply text-sand-600 mt-1; }
+}
+
+/* Map placeholder */
+.map-bg {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(189,125,61,0.18), transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(205,80,40,0.15), transparent 50%),
+    repeating-linear-gradient(45deg, #f4ead9, #f4ead9 12px, #ead9bb 12px, #ead9bb 13px);
+}
+
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #dbb682; border-radius: 8px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
