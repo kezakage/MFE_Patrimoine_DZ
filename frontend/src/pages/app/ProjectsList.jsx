@@ -1,20 +1,35 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, Filter, Grid as GridIcon, List as ListIcon } from 'lucide-react'
-import { PROJECTS, STATUS_LABEL } from '../../data/projects.js'
+import { Plus, Search, Grid as GridIcon, List as ListIcon, Loader2 } from 'lucide-react'
+import { STATUS_LABEL, projectToCard } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ProjectCard from '../../components/ProjectCard.jsx'
+import { heritage } from '../../lib/api.js'
 
 export default function ProjectsList() {
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [view, setView] = useState('grid')
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const filtered = useMemo(() => PROJECTS.filter(p => {
-    if (q && !(p.name + p.summary).toLowerCase().includes(q.toLowerCase())) return false
-    if (status && p.status !== status) return false
-    return true
-  }), [q, status])
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    heritage.projects({
+      search: q || undefined,
+      status: status || undefined,
+    })
+      .then((data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : (data.results || [])
+        setItems(list.map(projectToCard))
+      })
+      .catch((e) => { if (!cancelled) setError(e.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [q, status])
 
   return (
     <div className="space-y-5">
@@ -38,7 +53,10 @@ export default function ProjectsList() {
           <label className="label">Statut</label>
           <select value={status} onChange={e=>setStatus(e.target.value)} className="input min-w-[160px]">
             <option value="">Tous</option>
-            {Object.entries(STATUS_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            <option value="draft">Brouillon</option>
+            <option value="in_progress">En cours</option>
+            <option value="published">Validé</option>
+            <option value="archived">Archivé</option>
           </select>
         </div>
         <div className="inline-flex bg-sand-50 rounded-lg border border-sand-200 p-1">
@@ -47,9 +65,22 @@ export default function ProjectsList() {
         </div>
       </div>
 
+      {loading && (
+        <div className="text-sand-600 inline-flex items-center gap-2">
+          <Loader2 size={14} className="animate-spin"/>Chargement...
+        </div>
+      )}
+      {error && <div className="card p-4 text-red-700 bg-red-50">Erreur: {error}</div>}
+
+      {!loading && !error && items.length === 0 && (
+        <div className="card p-10 text-center text-sand-600">
+          Aucun projet pour le moment. Créez-en un avec « Nouveau projet ».
+        </div>
+      )}
+
       {view === 'grid' ? (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filtered.map(p => <ProjectCard key={p.id} project={p} to={`/app/projets/${p.id}`}/>)}
+          {items.map(p => <ProjectCard key={p.id} project={p} to={`/app/projets/${p.id}`}/>)}
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -60,12 +91,11 @@ export default function ProjectsList() {
                 <th className="text-left px-4 py-3">Région</th>
                 <th className="text-left px-4 py-3">Période</th>
                 <th className="text-left px-4 py-3">Type</th>
-                <th className="text-left px-4 py-3">Contributeurs</th>
                 <th className="text-left px-4 py-3">Statut</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
+              {items.map(p => (
                 <tr key={p.id} className="border-t border-sand-100 hover:bg-sand-50">
                   <td className="px-4 py-3">
                     <Link to={`/app/projets/${p.id}`} className="font-medium hover:text-terracotta-700">{p.name}</Link>
@@ -73,7 +103,6 @@ export default function ProjectsList() {
                   <td className="px-4 py-3">{p.region}</td>
                   <td className="px-4 py-3">{p.period}</td>
                   <td className="px-4 py-3">{p.type}</td>
-                  <td className="px-4 py-3">{p.contributors.length}</td>
                   <td className="px-4 py-3"><StatusBadge status={p.status}/></td>
                 </tr>
               ))}

@@ -1,10 +1,20 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Compass, Users, BookOpen, Sparkles, MapPin, Bot } from 'lucide-react'
-import { PROJECTS } from '../../data/projects.js'
+import { resourceToCard } from '../../data/projects.js'
+import { heritage } from '../../lib/api.js'
 import ProjectCard from '../../components/ProjectCard.jsx'
 
 export default function Home() {
-  const featured = PROJECTS.slice(0, 3)
+  const [featured, setFeatured] = useState([])
+  useEffect(() => {
+    heritage.resources({ limit: 3 })
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data.results || [])
+        setFeatured(list.slice(0, 3).map(resourceToCard))
+      })
+      .catch(() => {})
+  }, [])
   return (
     <div>
       {/* Hero */}
@@ -89,7 +99,7 @@ export default function Home() {
           <Link to="/explorer" className="btn-secondary">Voir tout <ArrowRight size={16}/></Link>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
-          {featured.map(p => <ProjectCard key={p.id} project={p}/>)}
+          {featured.map(p => <ProjectCard key={p.id} project={p} to={`/explorer/${p.id}`}/>)}
         </div>
       </section>
 

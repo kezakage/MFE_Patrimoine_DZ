@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FolderKanban, AlertTriangle, CheckCircle2, Activity, Sparkles,
@@ -5,7 +6,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotifications } from '../../context/NotificationsContext.jsx'
-import { PROJECTS } from '../../data/projects.js'
+import { heritage } from '../../lib/api.js'
+import { projectToCard } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
 
 function StatCard({ icon: Icon, label, value }) {
@@ -34,7 +36,21 @@ export default function Dashboard() {
 }
 
 function ExpertDashboard({ user, notifs }) {
-  const myProjects = PROJECTS.slice(0, 3)
+  const [myProjects, setMyProjects] = useState([])
+  const [stats, setStats] = useState({ total: 0, published: 0, in_progress: 0 })
+  useEffect(() => {
+    heritage.projects()
+      .then((data) => {
+        const list = (Array.isArray(data) ? data : (data.results || [])).map(projectToCard)
+        setMyProjects(list.slice(0, 3))
+        setStats({
+          total: list.length,
+          published: list.filter(p => p.status === 'published').length,
+          in_progress: list.filter(p => p.status === 'in_progress').length,
+        })
+      })
+      .catch(() => {})
+  }, [])
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between flex-wrap gap-3">
@@ -46,10 +62,10 @@ function ExpertDashboard({ user, notifs }) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={FolderKanban} label="Mes projets" value="6"/>
-        <StatCard icon={CheckCircle2} label="Validés" value="3"/>
-        <StatCard icon={AlertTriangle} label="En conflit" value="1"/>
-        <StatCard icon={FileCheck2} label="Contributions" value="42"/>
+        <StatCard icon={FolderKanban} label="Mes projets" value={stats.total}/>
+        <StatCard icon={CheckCircle2} label="Publiés" value={stats.published}/>
+        <StatCard icon={AlertTriangle} label="En cours" value={stats.in_progress}/>
+        <StatCard icon={FileCheck2} label="Notifications" value={notifs.length}/>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -100,7 +116,8 @@ function ExpertDashboard({ user, notifs }) {
           <h2 className="font-semibold flex items-center gap-2"><Sparkles size={18} className="text-terracotta-600"/>Suggestions</h2>
           <p className="text-sm text-sand-600 mt-1">Projets que vous pourriez compléter selon votre discipline.</p>
           <ul className="mt-3 space-y-2">
-            {PROJECTS.slice(3,6).map(p => (
+            {myProjects.length === 0 && <li className="text-sm text-sand-500 p-3">Aucune suggestion pour le moment.</li>}
+            {myProjects.map(p => (
               <li key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-sand-50 border border-sand-100">
                 <div>
                   <Link to={`/app/projets/${p.id}`} className="font-medium hover:text-terracotta-700">{p.name}</Link>

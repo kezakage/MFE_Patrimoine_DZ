@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Navigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, History, Users as UsersIcon, MessageSquare, Image as ImageIcon,
   Bold, Italic, Underline, List as ListIcon, Heading1, Quote, Table, MapPin,
-  AlertTriangle, Save, Eye, Pin, GitCompare, RotateCcw, Plus
+  AlertTriangle, Save, Eye, Pin, GitCompare, RotateCcw, Plus, Loader2, Upload,
 } from 'lucide-react'
-import { findProject } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
+import { heritage, pages as pagesApi, media as mediaApi, discussions as discApi, mediaUrl } from '../../lib/api.js'
+import { projectToCard } from '../../data/projects.js'
 
 const TABS = [
   { k: 'edit', label: 'Éditeur', icon: Bold },
@@ -18,34 +19,53 @@ const TABS = [
 
 export default function ProjectWorkspace() {
   const { id } = useParams()
-  const project = findProject(id)
+  const [project, setProject] = useState(null)
+  const [members, setMembers] = useState([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('edit')
-  if (!project) return <Navigate to="/app/projets" replace/>
+  const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    Promise.all([
+      heritage.project(id),
+      heritage.members(id).catch(() => []),
+    ])
+      .then(([proj, mem]) => {
+        if (cancelled) return
+        setProject({ raw: proj, ...projectToCard(proj) })
+        setMembers(Array.isArray(mem) ? mem : [])
+      })
+      .catch((e) => { if (e.status === 404) setNotFound(true) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [id])
+
+  if (loading) return <div className="text-sand-600 inline-flex items-center gap-2 p-6"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+  if (notFound || !project) return <Navigate to="/app/projets" replace/>
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-start gap-4 flex-wrap">
         <Link to="/app/projets" className="btn-ghost"><ArrowLeft size={16}/>Projets</Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-display font-semibold">{project.name}</h1>
             <StatusBadge status={project.status}/>
-            {project.status === 'en_conflit' && (
-              <Link to={`/app/projets/${project.id}/conflits`} className="chip bg-red-50 text-red-700 border border-red-200">
-                <AlertTriangle size={12}/>3 sections en désaccord
-              </Link>
-            )}
           </div>
           <p className="text-sand-600 text-sm mt-1">{project.region} • {project.period} • {project.type}</p>
         </div>
         <div className="flex gap-2">
-          <Link to={`/projets-publics/${project.id}`} className="btn-secondary"><Eye size={16}/>Aperçu public</Link>
-          <button className="btn-primary"><Save size={16}/>Enregistrer</button>
+          <Link to={`/projets-publics/${project.resourceId}`} className="btn-secondary"><Eye size={16}/>Aperçu public</Link>
+          <button className="btn-primary" onClick={async () => {
+            await heritage.publish(project.id)
+            const fresh = await heritage.project(id)
+            setProject({ raw: fresh, ...projectToCard(fresh) })
+          }}><Save size={16}/>Publier</button>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-sand-200">
         <div className="flex gap-1 overflow-x-auto">
           {TABS.map(t => (
@@ -61,48 +81,42 @@ export default function ProjectWorkspace() {
 
       <div className="grid lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-5">
-          {tab === 'edit' && <Editor project={project}/>}
-          {tab === 'media' && <MediaGallery project={project}/>}
-          {tab === 'annotations' && <AnnotationsPanel project={project}/>}
-          {tab === 'history' && <VersionHistory/>}
-          {tab === 'discussion' && <Discussion/>}
+          {tab === 'edit' && <Editor projectId={project.id}/>}
+          {tab === 'media' && <MediaGallery projectId={project.id} coverColor={project.coverColor}/>}
+          {tab === 'annotations' && <AnnotationsPanel projectId={project.id}/>}
+          {tab === 'history' && <VersionHistory projectId={project.id}/>}
+          {tab === 'discussion' && <DiscussionTab projectId={project.id}/>}
         </div>
 
         <aside className="space-y-4">
           <div className="card p-5">
             <h3 className="font-semibold flex items-center gap-2"><UsersIcon size={16}/>Contributeurs</h3>
             <ul className="mt-3 space-y-2">
-              {project.contributors.map((c,i) => (
-                <li key={i} className="flex items-center gap-2">
+              {members.length === 0 && <li className="text-sm text-sand-500">Aucun contributeur</li>}
+              {members.map((m, i) => (
+                <li key={m.id || i} className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full grid place-items-center text-white text-xs font-semibold"
                        style={{background: ['#824c2b','#cd5028','#67241a','#a56432'][i%4]}}>
-                    {c.split(' ').map(s=>s[0]).slice(0,2).join('')}
+                    {(m.user?.full_name || m.user?.email || 'U').slice(0,2).toUpperCase()}
                   </div>
-                  <div className="text-sm">{c}</div>
+                  <div className="text-sm">
+                    <div>{m.user?.full_name || m.user?.email}</div>
+                    <div className="text-xs text-sand-500">{m.project_role}</div>
+                  </div>
                 </li>
               ))}
             </ul>
-            <button className="btn-secondary w-full mt-3 text-sm"><Plus size={14}/>Inviter</button>
           </div>
 
-          <div className="card p-5">
-            <h3 className="font-semibold">Statut & métriques</h3>
-            <ul className="mt-3 space-y-2 text-sm text-sand-700">
-              <li className="flex justify-between"><span>Sections</span><span className="font-medium">8</span></li>
-              <li className="flex justify-between"><span>Annotations</span><span className="font-medium">{project.annotations}</span></li>
-              <li className="flex justify-between"><span>Médias</span><span className="font-medium">{project.images}</span></li>
-              <li className="flex justify-between"><span>Versions</span><span className="font-medium">{project.versions}</span></li>
-              <li className="flex justify-between"><span>Dernière maj</span><span className="font-medium">il y a 2h</span></li>
-            </ul>
-          </div>
-
-          <div className="card p-5">
-            <h3 className="font-semibold flex items-center gap-2"><MapPin size={16}/>Localisation</h3>
-            <div className="mt-3 h-32 rounded-lg map-bg relative overflow-hidden">
-              <div className="absolute" style={{ top:'40%', left:'45%' }}><MapPin className="text-terracotta-700" size={24}/></div>
+          {project.lat != null && project.lng != null && (
+            <div className="card p-5">
+              <h3 className="font-semibold flex items-center gap-2"><MapPin size={16}/>Localisation</h3>
+              <div className="mt-3 h-32 rounded-lg map-bg relative overflow-hidden">
+                <div className="absolute" style={{ top:'40%', left:'45%' }}><MapPin className="text-terracotta-700" size={24}/></div>
+              </div>
+              <div className="text-xs text-sand-500 mt-2">{project.lat.toFixed(3)}, {project.lng.toFixed(3)}</div>
             </div>
-            <div className="text-xs text-sand-500 mt-2">{project.lat.toFixed(3)}, {project.lng.toFixed(3)}</div>
-          </div>
+          )}
         </aside>
       </div>
     </div>
@@ -120,167 +134,376 @@ function Toolbar() {
   )
 }
 
-function Editor({ project }) {
-  const sections = [
-    { t:'Présentation', a:'Dr. Amina Belhadj', body: project.description },
-    { t:'Contexte historique', a:'Karim Saadi', body: 'L\'édifice s\'inscrit dans un contexte ottoman tardif. Il témoigne des évolutions stylistiques et fonctionnelles de l\'époque, mêlant influences locales et orientales.' },
-    { t:'Description architecturale', a:'Pr. Hocine Mansouri', body: 'Le plan du bâtiment est organisé autour d\'une cour centrale. Les façades présentent un appareillage en pierre de taille...', conflict: true },
-    { t:'État de conservation', a:'Dr. Amina Belhadj', body: 'Plusieurs campagnes de restauration ont été menées depuis les années 1970...' },
-  ]
+function Editor({ projectId }) {
+  const [pages, setPages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [drafts, setDrafts] = useState({})
+
+  useEffect(() => {
+    let cancelled = false
+    pagesApi.list(projectId)
+      .then((data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : (data.results || [])
+        setPages(list)
+        const d = {}
+        list.forEach((p) => { d[p.id] = textFromContent(p.current_version?.content_json) })
+        setDrafts(d)
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [projectId])
+
+  const saveAll = async () => {
+    setSaving(true)
+    try {
+      for (const p of pages) {
+        const text = drafts[p.id] || ''
+        await pagesApi.createVersion({
+          page: p.id,
+          content_json: contentFromText(text),
+          change_summary: 'Édition',
+          status: 'draft',
+        })
+      }
+      // refresh
+      const data = await pagesApi.list(projectId)
+      const list = Array.isArray(data) ? data : (data.results || [])
+      setPages(list)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const addSection = async () => {
+    const title = prompt('Titre de la nouvelle section')
+    if (!title) return
+    await pagesApi.create({ project: projectId, title, position: pages.length })
+    const data = await pagesApi.list(projectId)
+    const list = Array.isArray(data) ? data : (data.results || [])
+    setPages(list)
+  }
+
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+
   return (
     <div className="card overflow-hidden">
       <Toolbar/>
       <div className="p-6 space-y-6">
-        {sections.map((s,i) => (
-          <article key={i} className={`group ${s.conflict?'ring-2 ring-red-300 rounded-lg p-3 -m-3 bg-red-50/40':''}`}>
+        {pages.length === 0 && (
+          <div className="text-center text-sand-500 py-10">Aucune section pour ce projet.</div>
+        )}
+        {pages.map((p) => (
+          <article key={p.id} className="group">
             <header className="flex items-center justify-between mb-2">
-              <h3 className="font-display text-xl font-semibold">{s.t}</h3>
-              <div className="flex items-center gap-2">
-                {s.conflict && <span className="chip bg-red-100 text-red-800"><AlertTriangle size={12}/>conflit</span>}
-                <span className="text-xs text-sand-500">par {s.a}</span>
-              </div>
+              <h3 className="font-display text-xl font-semibold">{p.title}</h3>
+              <span className="text-xs text-sand-500">v{p.current_version?.version_number ?? 0}</span>
             </header>
-            <p className="text-sand-800 leading-relaxed" contentEditable suppressContentEditableWarning>
-              {s.body}
-            </p>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity mt-2 flex gap-2">
-              <button className="btn-ghost text-xs"><Pin size={12}/>Annoter</button>
-              <button className="btn-ghost text-xs"><MessageSquare size={12}/>Commenter</button>
-            </div>
+            <textarea
+              rows={4}
+              className="input resize-y w-full"
+              value={drafts[p.id] || ''}
+              onChange={(e) => setDrafts({ ...drafts, [p.id]: e.target.value })}
+              placeholder="Rédigez le contenu de cette section..."
+            />
           </article>
         ))}
-        <button className="btn-secondary w-full"><Plus size={16}/>Ajouter une section</button>
+        <div className="flex gap-2">
+          <button className="btn-secondary" onClick={addSection}><Plus size={16}/>Ajouter une section</button>
+          {pages.length > 0 && (
+            <button className="btn-primary" disabled={saving} onClick={saveAll}>
+              {saving && <Loader2 className="animate-spin" size={14}/>} Enregistrer toutes les sections
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-function MediaGallery({ project }) {
+function textFromContent(content) {
+  if (!content) return ''
+  if (typeof content === 'string') return content
+  if (content.text) return content.text
+  // tiptap-like: { type: 'doc', content: [{type:'paragraph', content:[{type:'text', text:''}]}] }
+  try {
+    if (Array.isArray(content.content)) {
+      return content.content.map(b => (b.content || []).map(c => c.text || '').join('')).join('\n\n')
+    }
+  } catch (_) {}
+  return JSON.stringify(content)
+}
+
+function contentFromText(text) {
+  return {
+    type: 'doc',
+    content: text.split('\n\n').filter(Boolean).map((para) => ({
+      type: 'paragraph',
+      content: [{ type: 'text', text: para }],
+    })),
+  }
+}
+
+function MediaGallery({ projectId, coverColor }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+
+  const refresh = async () => {
+    const data = await mediaApi.list(projectId)
+    const list = Array.isArray(data) ? data : (data.results || [])
+    setItems(list)
+  }
+
+  useEffect(() => { refresh().finally(() => setLoading(false)) }, [projectId])
+
+  const onUpload = async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setUploading(true)
+    try {
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('file', f)
+        fd.append('project', projectId)
+        fd.append('media_type', f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'document')
+        await mediaApi.upload(fd)
+      }
+      await refresh()
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+
   return (
     <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">Médias du projet ({project.images})</h3>
-        <button className="btn-primary text-sm">+ Importer</button>
+        <h3 className="font-semibold">Médias du projet ({items.length})</h3>
+        <input id="m-up" type="file" multiple className="hidden" onChange={onUpload}/>
+        <label htmlFor="m-up" className="btn-primary text-sm cursor-pointer">
+          {uploading ? <Loader2 className="animate-spin" size={14}/> : <Upload size={14}/>} Importer
+        </label>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {Array.from({ length: 9 }).map((_,i) => (
-          <div key={i} className="aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer hover:opacity-90 group"
-               style={{ background: `linear-gradient(${135 + i*15}deg, ${project.coverColor}, #3e2417)` }}>
-            <div className="absolute inset-0 opacity-20"
-                 style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 1px, transparent 1px 10px)' }}/>
-            <div className="absolute bottom-2 left-2 text-white text-xs bg-black/30 px-2 py-0.5 rounded">{project.name} — {i+1}</div>
-            <div className="absolute top-2 right-2 chip bg-white/90 text-sand-800 opacity-0 group-hover:opacity-100">{Math.floor(Math.random()*5)+1} annotations</div>
-          </div>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <div className="text-sand-500 text-center py-10">Aucun média. Importez votre première image.</div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {items.map((m) => (
+            <div key={m.id} className="aspect-[4/3] rounded-lg overflow-hidden relative bg-sand-100">
+              {m.thumbnail_url || m.file_url ? (
+                <img src={mediaUrl(m.thumbnail_url || m.file_url)} alt={m.caption || ''} className="w-full h-full object-cover"/>
+              ) : (
+                <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${coverColor}, #3e2417)` }}/>
+              )}
+              <div className="absolute bottom-2 left-2 text-white text-xs bg-black/40 px-2 py-0.5 rounded">{m.media_type}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function AnnotationsPanel({ project }) {
+function AnnotationsPanel({ projectId }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    // Fetch annotations on the project's media. For simplicity: list media, then annotations per media.
+    mediaApi.list(projectId).then(async (data) => {
+      const ms = Array.isArray(data) ? data : (data.results || [])
+      const all = []
+      for (const m of ms.slice(0, 20)) {
+        try {
+          const a = await mediaApi.annotations({ media: m.id })
+          const list = Array.isArray(a) ? a : (a.results || [])
+          all.push(...list)
+        } catch (_) {}
+      }
+      setItems(all)
+    }).finally(() => setLoading(false))
+  }, [projectId])
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
   return (
-    <div className="grid md:grid-cols-2 gap-4">
-      <div className="card p-5">
-        <h3 className="font-semibold">Annotations sur image</h3>
-        <div className="mt-3 aspect-[4/3] rounded-lg relative overflow-hidden"
-             style={{ background: `linear-gradient(135deg, ${project.coverColor}, #3e2417)` }}>
-          {[
-            {x:30,y:40,n:1}, {x:60,y:55,n:2}, {x:75,y:25,n:3},
-          ].map(p => (
-            <div key={p.n} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left:`${p.x}%`, top:`${p.y}%` }}>
-              <div className="w-7 h-7 rounded-full bg-terracotta-600 text-white grid place-items-center text-xs font-bold ring-2 ring-white shadow">
-                {p.n}
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-sand-500 mt-2">Cliquez sur l'image pour ajouter un point d'annotation.</p>
-      </div>
-      <div className="card p-5">
-        <h3 className="font-semibold">Liste des annotations</h3>
+    <div className="card p-5">
+      <h3 className="font-semibold">Annotations du projet ({items.length})</h3>
+      {items.length === 0 ? (
+        <p className="text-sand-500 text-sm mt-3">Aucune annotation. Importez des médias et annotez-les.</p>
+      ) : (
         <ul className="mt-3 space-y-2">
-          {[
-            { n:1, t:'Mihrab orné', a:'Dr. Amina Belhadj', s:'Description architecturale' },
-            { n:2, t:'Coupole ottomane', a:'Pr. Hocine Mansouri', s:'Description architecturale' },
-            { n:3, t:'Inscription épigraphique', a:'Karim Saadi', s:'Histoire' },
-          ].map(a => (
-            <li key={a.n} className="flex gap-3 p-3 rounded-lg bg-sand-50 border border-sand-100">
-              <div className="w-7 h-7 rounded-full bg-terracotta-600 text-white grid place-items-center text-xs font-bold flex-shrink-0">{a.n}</div>
+          {items.map((a) => (
+            <li key={a.id} className="flex gap-3 p-3 rounded-lg bg-sand-50 border border-sand-100">
+              <div className="w-7 h-7 rounded-full bg-terracotta-600 text-white grid place-items-center text-xs font-bold flex-shrink-0">
+                {a.is_ai_generated ? 'IA' : 'A'}
+              </div>
               <div className="flex-1">
-                <div className="font-medium text-sm">{a.t}</div>
-                <div className="text-xs text-sand-600">Lié à : <span className="text-terracotta-700">{a.s}</span></div>
-                <div className="text-xs text-sand-500">par {a.a}</div>
+                <div className="font-medium text-sm">{a.body_text || '(sans texte)'}</div>
+                <div className="text-xs text-sand-500">par {a.author?.full_name || a.author?.email || '—'}{a.is_validated ? '' : ' • à valider'}</div>
               </div>
             </li>
           ))}
         </ul>
-      </div>
+      )}
     </div>
   )
 }
 
-function VersionHistory() {
-  const versions = [
-    { v: 'v8', a: 'Dr. Amina Belhadj', d: 'il y a 2h', m: 'Ajout de la section "État de conservation"' },
-    { v: 'v7', a: 'Karim Saadi', d: 'il y a 1j', m: 'Révision des sources historiques' },
-    { v: 'v6', a: 'Pr. Hocine Mansouri', d: 'il y a 3j', m: 'Description architecturale (1ère version)' },
-    { v: 'v5', a: 'Dr. Amina Belhadj', d: 'il y a 6j', m: 'Validation des images de couverture' },
-  ]
+function VersionHistory({ projectId }) {
+  const [versions, setVersions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const refresh = async () => {
+    const data = await pagesApi.list(projectId)
+    const ps = Array.isArray(data) ? data : (data.results || [])
+    const all = []
+    for (const p of ps) {
+      try {
+        const h = await pagesApi.history(p.id)
+        const list = Array.isArray(h) ? h : (h.results || [])
+        for (const v of list) all.push({ ...v, pageTitle: p.title })
+      } catch (_) {}
+    }
+    all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    setVersions(all)
+  }
+  useEffect(() => { refresh().finally(() => setLoading(false)) }, [projectId])
+
+  const restore = async (versionId) => {
+    if (!confirm('Restaurer cette version ?')) return
+    await pagesApi.restore(versionId)
+    await refresh()
+  }
+
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">Historique des versions</h3>
-        <div className="flex gap-2">
-          <button className="btn-secondary text-sm"><GitCompare size={14}/>Comparer</button>
-        </div>
+        <h3 className="font-semibold">Historique des versions ({versions.length})</h3>
       </div>
-      <ul className="relative pl-6 border-l-2 border-sand-200 space-y-5">
-        {versions.map((v,i) => (
-          <li key={v.v} className="relative">
-            <span className="absolute -left-[31px] w-4 h-4 rounded-full bg-terracotta-600 ring-4 ring-white"/>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <div className="font-medium">{v.v} — {v.m}</div>
-                <div className="text-xs text-sand-500">{v.a} • {v.d}</div>
+      {versions.length === 0 ? (
+        <p className="text-sand-500 text-sm">Aucune version. Enregistrez des modifications dans l'éditeur.</p>
+      ) : (
+        <ul className="relative pl-6 border-l-2 border-sand-200 space-y-5">
+          {versions.map((v, i) => (
+            <li key={v.id} className="relative">
+              <span className="absolute -left-[31px] w-4 h-4 rounded-full bg-terracotta-600 ring-4 ring-white"/>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <div className="font-medium">v{v.version_number} — {v.change_summary || '(sans description)'}</div>
+                  <div className="text-xs text-sand-500">
+                    {v.pageTitle} • {v.author?.full_name || v.author?.email || '—'} • {new Date(v.created_at).toLocaleString('fr-FR')}
+                  </div>
+                </div>
+                {i > 0 && (
+                  <button onClick={() => restore(v.id)} className="btn-ghost text-xs text-terracotta-700">
+                    <RotateCcw size={12}/>Restaurer
+                  </button>
+                )}
               </div>
-              <div className="flex gap-2">
-                <button className="btn-ghost text-xs"><Eye size={12}/>Voir</button>
-                {i>0 && <button className="btn-ghost text-xs text-terracotta-700"><RotateCcw size={12}/>Restaurer</button>}
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
 
-function Discussion() {
-  const messages = [
-    { a:'Dr. Amina Belhadj', d:'il y a 1j', t:'Je propose d\'ajouter une référence à l\'ouvrage de Lézine sur l\'architecture maghrébine.' },
-    { a:'Karim Saadi', d:'il y a 22h', t:'D\'accord, je peux compléter cette section ce week-end.' },
-    { a:'Pr. Hocine Mansouri', d:'il y a 4h', t:'Attention, la datation proposée pour le minaret est contestée — voir l\'étude de 2014.' },
-  ]
+function DiscussionTab({ projectId }) {
+  const [discussions, setDiscussions] = useState([])
+  const [active, setActive] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [draft, setDraft] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  const refresh = async () => {
+    const data = await discApi.list(projectId)
+    const list = Array.isArray(data) ? data : (data.results || [])
+    setDiscussions(list)
+    if (!active && list.length > 0) {
+      setActive(list[0])
+      const m = await discApi.messages(list[0].id)
+      setMessages(Array.isArray(m) ? m : (m.results || []))
+    }
+  }
+
+  useEffect(() => { refresh().finally(() => setLoading(false)) }, [projectId])
+
+  const switchTo = async (d) => {
+    setActive(d)
+    const m = await discApi.messages(d.id)
+    setMessages(Array.isArray(m) ? m : (m.results || []))
+  }
+
+  const send = async () => {
+    if (!draft.trim() || !active) return
+    await discApi.postMessage(active.id, draft)
+    setDraft('')
+    const m = await discApi.messages(active.id)
+    setMessages(Array.isArray(m) ? m : (m.results || []))
+  }
+
+  const create = async () => {
+    const title = prompt('Titre de la discussion')
+    if (!title) return
+    const d = await discApi.create({ project: projectId, title, type: 'general', status: 'open' })
+    await refresh()
+    switchTo(d)
+  }
+
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+
   return (
-    <div className="card p-5">
-      <h3 className="font-semibold">Discussion du projet</h3>
-      <ul className="mt-4 space-y-3">
-        {messages.map((m,i) => (
-          <li key={i} className="flex gap-3">
-            <div className="w-9 h-9 rounded-full grid place-items-center text-white text-xs font-semibold"
-                 style={{background:['#824c2b','#cd5028','#67241a'][i%3]}}>
-              {m.a.split(' ').map(s=>s[0]).slice(0,2).join('')}
+    <div className="grid md:grid-cols-3 gap-4">
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-sm">Discussions</h3>
+          <button onClick={create} className="btn-ghost text-xs"><Plus size={12}/></button>
+        </div>
+        {discussions.length === 0 && <p className="text-sand-500 text-xs">Aucune discussion</p>}
+        <ul className="space-y-1">
+          {discussions.map(d => (
+            <li key={d.id}>
+              <button onClick={() => switchTo(d)}
+                className={`w-full text-left px-2 py-1.5 rounded text-sm ${active?.id===d.id?'bg-terracotta-50 text-terracotta-700':'hover:bg-sand-50'}`}>
+                {d.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="card p-5 md:col-span-2">
+        {!active ? (
+          <p className="text-sand-500 text-sm">Sélectionnez ou créez une discussion.</p>
+        ) : (
+          <>
+            <h3 className="font-semibold">{active.title}</h3>
+            <ul className="mt-4 space-y-3 max-h-96 overflow-y-auto">
+              {messages.map((m) => (
+                <li key={m.id} className="flex gap-3">
+                  <div className="w-9 h-9 rounded-full bg-terracotta-600 grid place-items-center text-white text-xs font-semibold">
+                    {(m.author?.full_name || m.author?.email || 'U').slice(0,2).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{m.author?.full_name || m.author?.email}</span>
+                      <span className="text-xs text-sand-500">{new Date(m.created_at).toLocaleString('fr-FR')}</span>
+                    </div>
+                    <div className="text-sm text-sand-800 mt-0.5 whitespace-pre-line">{m.body}</div>
+                  </div>
+                </li>
+              ))}
+              {messages.length === 0 && <li className="text-sand-500 text-sm">Aucun message</li>}
+            </ul>
+            <div className="mt-4 flex gap-2">
+              <input className="input flex-1" placeholder="Écrire un message..."
+                     value={draft} onChange={(e) => setDraft(e.target.value)}
+                     onKeyDown={(e) => { if (e.key === 'Enter') send() }}/>
+              <button onClick={send} className="btn-primary">Envoyer</button>
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2"><span className="font-medium text-sm">{m.a}</span><span className="text-xs text-sand-500">{m.d}</span></div>
-              <div className="text-sm text-sand-800 mt-0.5">{m.t}</div>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-4 flex gap-2">
-        <input className="input flex-1" placeholder="Écrire un message..."/>
-        <button className="btn-primary">Envoyer</button>
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,22 +1,86 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Upload, Image as ImageIcon } from 'lucide-react'
+import { ArrowLeft, Upload, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { PERIODS, REGIONS, TYPES } from '../../data/projects.js'
+import { heritage, media as mediaApi, pages as pagesApi } from '../../lib/api.js'
 
 const STEPS = ['Informations', 'Médias', 'Structure du contenu']
 
 export default function ProjectCreate() {
   const nav = useNavigate()
   const [step, setStep] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
+  const [files, setFiles] = useState([])
   const [data, setData] = useState({
-    name: '', region: 'Alger', period: 'Ottoman', type: 'Mosquée', summary: '',
+    name: '',
+    name_ar: '',
+    region: 'Alger',
+    period: 'ottoman',
+    type: 'mosque',
+    classification_level: 'unclassified',
+    summary: '',
+    description: '',
+    longitude: '',
+    latitude: '',
     sections: ['Présentation', 'Histoire', 'Description architecturale', 'État de conservation'],
   })
 
   const set = (k) => (e) => setData({ ...data, [k]: e.target.value })
 
-  const submit = () => {
-    nav('/app/projets')
+  const submit = async () => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      // 1. HeritageResource
+      const resourcePayload = {
+        name_fr: data.name,
+        name_ar: data.name_ar,
+        wilaya: data.region,
+        period: data.period,
+        architectural_type: data.type,
+        classification_level: data.classification_level,
+        description: data.description || data.summary,
+      }
+      if (data.longitude && data.latitude) {
+        resourcePayload.longitude = parseFloat(data.longitude)
+        resourcePayload.latitude = parseFloat(data.latitude)
+      }
+      const resource = await heritage.createResource(resourcePayload)
+
+      // 2. Project bound to that resource
+      const project = await heritage.createProject({
+        resource: resource.id,
+        title: data.name,
+        description: data.summary || '',
+        status: 'draft',
+      })
+
+      // 3. Initial pages from sections
+      for (let i = 0; i < data.sections.length; i++) {
+        await pagesApi.create({
+          project: project.id,
+          title: data.sections[i],
+          position: i,
+        })
+      }
+
+      // 4. Optional media uploads
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('file', f)
+        fd.append('project', project.id)
+        const kind = f.type.startsWith('image/') ? 'image'
+                   : f.type.startsWith('video/') ? 'video' : 'document'
+        fd.append('media_type', kind)
+        try { await mediaApi.upload(fd) } catch (_) { /* tolerate single failure */ }
+      }
+
+      nav(`/app/projets/${project.id}`)
+    } catch (e) {
+      setError(e.data ? JSON.stringify(e.data) : e.message)
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -41,8 +105,12 @@ export default function ProjectCreate() {
         {step === 0 && (
           <div className="grid md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="label">Nom du monument / projet</label>
+              <label className="label">Nom du monument / projet *</label>
               <input className="input" required value={data.name} onChange={set('name')} placeholder="Ex. Mosquée de Sidi Boumediene"/>
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">Nom (arabe)</label>
+              <input className="input" value={data.name_ar} onChange={set('name_ar')} placeholder="جامع سيدي بومدين" dir="rtl"/>
             </div>
             <div>
               <label className="label">Région</label>
@@ -53,18 +121,39 @@ export default function ProjectCreate() {
             <div>
               <label className="label">Période</label>
               <select className="input" value={data.period} onChange={set('period')}>
-                {PERIODS.map(p => <option key={p}>{p}</option>)}
+                {PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </div>
-            <div className="md:col-span-2">
+            <div>
               <label className="label">Type architectural</label>
               <select className="input" value={data.type} onChange={set('type')}>
-                {TYPES.map(t => <option key={t}>{t}</option>)}
+                {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="label">Classement</label>
+              <select className="input" value={data.classification_level} onChange={set('classification_level')}>
+                <option value="unclassified">Non classé</option>
+                <option value="regional">Régional</option>
+                <option value="national">National</option>
+                <option value="unesco">UNESCO</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Longitude (optionnel)</label>
+              <input className="input" value={data.longitude} onChange={set('longitude')} placeholder="3.0588"/>
+            </div>
+            <div>
+              <label className="label">Latitude (optionnel)</label>
+              <input className="input" value={data.latitude} onChange={set('latitude')} placeholder="36.7833"/>
             </div>
             <div className="md:col-span-2">
               <label className="label">Résumé court</label>
               <textarea rows={3} className="input resize-none" value={data.summary} onChange={set('summary')} placeholder="Décrivez brièvement le projet..."/>
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">Description complète</label>
+              <textarea rows={5} className="input resize-none" value={data.description} onChange={set('description')} placeholder="Histoire, contexte, sources..."/>
             </div>
           </div>
         )}
@@ -75,9 +164,21 @@ export default function ProjectCreate() {
             <div className="border-2 border-dashed border-sand-300 rounded-xl p-10 text-center bg-sand-50">
               <Upload className="mx-auto text-sand-500" size={32}/>
               <p className="mt-3 text-sand-700">Glissez-déposez vos fichiers ou</p>
-              <button className="btn-primary mt-3"><ImageIcon size={16}/>Parcourir</button>
-              <p className="text-xs text-sand-500 mt-3">JPG, PNG, PDF — max 25 Mo / fichier</p>
+              <input id="filepick" type="file" multiple className="hidden"
+                     onChange={(e) => setFiles(Array.from(e.target.files || []))}/>
+              <label htmlFor="filepick" className="btn-primary mt-3 inline-flex"><ImageIcon size={16}/>Parcourir</label>
+              <p className="text-xs text-sand-500 mt-3">JPG, PNG, PDF — max 50 Mo / fichier</p>
             </div>
+            {files.length > 0 && (
+              <ul className="mt-4 text-sm space-y-1">
+                {files.map((f, i) => (
+                  <li key={i} className="flex justify-between border-b py-1">
+                    <span>{f.name}</span>
+                    <span className="text-sand-500">{(f.size/1024).toFixed(0)} Ko</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -101,12 +202,16 @@ export default function ProjectCreate() {
         )}
       </div>
 
+      {error && <div className="card p-3 text-red-700 bg-red-50 text-sm">{error}</div>}
+
       <div className="flex justify-between">
-        <button disabled={step===0} onClick={()=>setStep(step-1)} className="btn-secondary">Précédent</button>
+        <button disabled={step===0||submitting} onClick={()=>setStep(step-1)} className="btn-secondary">Précédent</button>
         {step < STEPS.length-1 ? (
-          <button onClick={()=>setStep(step+1)} className="btn-primary">Suivant</button>
+          <button onClick={()=>setStep(step+1)} className="btn-primary" disabled={submitting}>Suivant</button>
         ) : (
-          <button onClick={submit} className="btn-primary">Créer le projet</button>
+          <button onClick={submit} className="btn-primary" disabled={submitting || !data.name}>
+            {submitting && <Loader2 className="animate-spin" size={14}/>} Créer le projet
+          </button>
         )}
       </div>
     </div>

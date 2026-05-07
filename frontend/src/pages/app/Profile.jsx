@@ -1,18 +1,51 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, Building2, GraduationCap, Save, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { Mail, Building2, GraduationCap, Save, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import Avatar from '../../components/Avatar.jsx'
-import { PROJECTS } from '../../data/projects.js'
+import { auth as authApi, heritage } from '../../lib/api.js'
+import { projectToCard } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
 
 export default function Profile() {
-  const { user } = useAuth()
+  const { user, refresh } = useAuth()
   const [form, setForm] = useState({
-    name: user.name, discipline: user.discipline, institution: user.institution, bio: ''
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
+    institution_name: user?.institution_name || user?.institution || '',
+    bio: user?.bio || '',
   })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState(null)
+  const [contribs, setContribs] = useState([])
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
-  const myContribs = PROJECTS.slice(0, 4)
+
+  useEffect(() => {
+    heritage.projects()
+      .then((data) => {
+        const list = (Array.isArray(data) ? data : (data.results || [])).map(projectToCard)
+        setContribs(list.slice(0, 5))
+      })
+      .catch(() => {})
+  }, [])
+
+  const save = async () => {
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      await authApi.updateMe(user.id, form)
+      setSaved(true)
+      if (refresh) await refresh()
+    } catch (e) {
+      setError(e.data ? JSON.stringify(e.data) : e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!user) return null
 
   return (
     <div className="space-y-6">
@@ -35,8 +68,8 @@ export default function Profile() {
           </div>
           <ul className="mt-5 space-y-2 text-sm">
             <li className="flex items-center gap-2 text-sand-700"><Mail size={16}/>{user.email}</li>
-            <li className="flex items-center gap-2 text-sand-700"><GraduationCap size={16}/>{user.discipline}</li>
-            <li className="flex items-center gap-2 text-sand-700"><Building2 size={16}/>{user.institution}</li>
+            <li className="flex items-center gap-2 text-sand-700"><GraduationCap size={16}/>{user.discipline || '—'}</li>
+            <li className="flex items-center gap-2 text-sand-700"><Building2 size={16}/>{user.institution || '—'}</li>
           </ul>
         </section>
 
@@ -44,16 +77,16 @@ export default function Profile() {
           <h2 className="font-semibold mb-4">Informations personnelles</h2>
           <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <label className="label">Nom</label>
-              <input className="input" value={form.name} onChange={set('name')}/>
+              <label className="label">Prénom</label>
+              <input className="input" value={form.first_name} onChange={set('first_name')}/>
             </div>
             <div>
-              <label className="label">Discipline</label>
-              <input className="input" value={form.discipline} onChange={set('discipline')}/>
+              <label className="label">Nom</label>
+              <input className="input" value={form.last_name} onChange={set('last_name')}/>
             </div>
             <div className="md:col-span-2">
               <label className="label">Institution</label>
-              <input className="input" value={form.institution} onChange={set('institution')}/>
+              <input className="input" value={form.institution_name} onChange={set('institution_name')}/>
             </div>
             <div className="md:col-span-2">
               <label className="label">Biographie / domaine de recherche</label>
@@ -61,48 +94,31 @@ export default function Profile() {
                         placeholder="Décrivez votre champ d'expertise..."/>
             </div>
           </div>
+          {error && <div className="mt-3 card p-3 text-red-700 bg-red-50 text-sm">{error}</div>}
+          {saved && <div className="mt-3 card p-3 text-emerald-800 bg-emerald-50 text-sm">Profil mis à jour.</div>}
           <div className="mt-4 flex justify-end gap-2">
-            <button className="btn-secondary">Annuler</button>
-            <button className="btn-primary"><Save size={16}/>Enregistrer</button>
+            <button onClick={save} disabled={saving} className="btn-primary">
+              {saving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Enregistrer
+            </button>
           </div>
         </section>
       </div>
 
       <section className="card p-6">
         <h2 className="font-semibold mb-4">Mes contributions</h2>
+        {contribs.length === 0 && <div className="text-sand-500 text-sm">Aucune contribution.</div>}
         <ul className="divide-y divide-sand-100">
-          {myContribs.map(p => (
+          {contribs.map(p => (
             <li key={p.id} className="py-3 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg" style={{background: `linear-gradient(135deg, ${p.coverColor}, #3e2417)`}}/>
               <div className="flex-1 min-w-0">
                 <Link to={`/app/projets/${p.id}`} className="font-medium hover:text-terracotta-700">{p.name}</Link>
-                <div className="text-xs text-sand-500">{Math.floor(Math.random()*15)+1} sections — {Math.floor(Math.random()*30)+5} annotations</div>
+                <div className="text-xs text-sand-500">{p.region} • {p.period}</div>
               </div>
               <StatusBadge status={p.status}/>
             </li>
           ))}
         </ul>
-      </section>
-
-      <section className="card p-6">
-        <h2 className="font-semibold mb-4">Paramètres du compte</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <h3 className="font-medium mb-2">Sécurité</h3>
-            <button className="btn-secondary w-full">Changer le mot de passe</button>
-            <button className="btn-secondary w-full mt-2">Activer la double authentification</button>
-          </div>
-          <div>
-            <h3 className="font-medium mb-2">Notifications</h3>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" defaultChecked/>Email — nouvelles contributions</label>
-            <label className="flex items-center gap-2 text-sm mt-1"><input type="checkbox" defaultChecked/>Email — conflits éditoriaux</label>
-            <label className="flex items-center gap-2 text-sm mt-1"><input type="checkbox"/>Email — résumé hebdomadaire</label>
-          </div>
-        </div>
-        <div className="mt-6 border-t border-sand-200 pt-4">
-          <h3 className="font-medium mb-2 text-red-700">Zone dangereuse</h3>
-          <button className="btn-danger">Supprimer mon compte</button>
-        </div>
       </section>
     </div>
   )

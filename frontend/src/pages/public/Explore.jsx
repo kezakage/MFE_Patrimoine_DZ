@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
-import { Search, List, Map as MapIcon, X } from 'lucide-react'
-import { PROJECTS, PERIODS, TYPES, REGIONS } from '../../data/projects.js'
+import { useEffect, useMemo, useState } from 'react'
+import { Search, List, Map as MapIcon, X, Loader2 } from 'lucide-react'
+import { PERIODS, TYPES, REGIONS, resourceToCard } from '../../data/projects.js'
 import ProjectCard from '../../components/ProjectCard.jsx'
 import MapView from '../../components/MapView.jsx'
+import { heritage } from '../../lib/api.js'
 
 export default function Explore() {
   const [q, setQ] = useState('')
@@ -11,14 +12,28 @@ export default function Explore() {
   const [type, setType] = useState('')
   const [view, setView] = useState('list')
 
-  const filtered = useMemo(() => PROJECTS.filter(p => {
-    const txt = (p.name + ' ' + p.summary + ' ' + p.region + ' ' + p.type).toLowerCase()
-    if (q && !txt.includes(q.toLowerCase())) return false
-    if (period && p.period !== period) return false
-    if (region && p.region !== region) return false
-    if (type && p.type !== type) return false
-    return true
-  }), [q, period, region, type])
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    heritage.resources({
+      search: q || undefined,
+      period: period || undefined,
+      wilaya: region || undefined,
+      architectural_type: type || undefined,
+    })
+      .then((data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : (data.results || [])
+        setItems(list.map(resourceToCard))
+      })
+      .catch((e) => { if (!cancelled) setError(e.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [q, period, region, type])
 
   const reset = () => { setQ(''); setPeriod(''); setRegion(''); setType('') }
 
@@ -47,7 +62,7 @@ export default function Explore() {
           <label className="label">Période</label>
           <select value={period} onChange={e=>setPeriod(e.target.value)} className="input">
             <option value="">Toutes</option>
-            {PERIODS.map(p => <option key={p}>{p}</option>)}
+            {PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
         <div className="md:col-span-2">
@@ -61,7 +76,7 @@ export default function Explore() {
           <label className="label">Type architectural</label>
           <select value={type} onChange={e=>setType(e.target.value)} className="input">
             <option value="">Tous</option>
-            {TYPES.map(t => <option key={t}>{t}</option>)}
+            {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
         <div className="md:col-span-1">
@@ -69,20 +84,26 @@ export default function Explore() {
         </div>
       </div>
 
-      <div className="mt-4 text-sm text-sand-600">{filtered.length} projet(s) trouvé(s)</div>
+      <div className="mt-4 text-sm text-sand-600">
+        {loading
+          ? <span className="inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin"/>Chargement...</span>
+          : `${items.length} ressource(s) trouvée(s)`}
+      </div>
+
+      {error && <div className="mt-3 card p-4 text-red-700 bg-red-50">Erreur: {error}</div>}
 
       <div className="mt-4">
         {view === 'list' ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map(p => <ProjectCard key={p.id} project={p}/>)}
-            {filtered.length === 0 && (
+            {items.map(p => <ProjectCard key={p.id} project={p}/>)}
+            {!loading && items.length === 0 && (
               <div className="col-span-full card p-10 text-center text-sand-600">
-                Aucun projet ne correspond à votre recherche.
+                Aucune ressource ne correspond à votre recherche.
               </div>
             )}
           </div>
         ) : (
-          <MapView projects={filtered}/>
+          <MapView projects={items}/>
         )}
       </div>
     </div>
