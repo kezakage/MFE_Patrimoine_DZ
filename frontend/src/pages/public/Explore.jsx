@@ -13,22 +13,28 @@ export default function Explore() {
   const [view, setView] = useState('list')
 
   const [items, setItems] = useState([])
+  const [features, setFeatures] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    heritage.resources({
+    const filters = {
       search: q || undefined,
       period: period || undefined,
       wilaya: region || undefined,
       architectural_type: type || undefined,
-    })
-      .then((data) => {
+    }
+    Promise.all([
+      heritage.resources(filters),
+      heritage.geojson(filters),
+    ])
+      .then(([data, geo]) => {
         if (cancelled) return
         const list = Array.isArray(data) ? data : (data.results || [])
         setItems(list.map(resourceToCard))
+        setFeatures(geo?.features || [])
       })
       .catch((e) => { if (!cancelled) setError(e.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -103,7 +109,7 @@ export default function Explore() {
             )}
           </div>
         ) : (
-          <MapView projects={items}/>
+          <MapView features={features}/>
         )}
       </div>
     </div>

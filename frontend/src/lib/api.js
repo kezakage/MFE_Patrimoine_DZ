@@ -117,6 +117,7 @@ export const heritage = {
   resource: (id) => api.get(`/heritage/resources/${id}/`),
   createResource: (data) => api.post('/heritage/resources/', data),
   fts: (q) => api.get('/heritage/resources/full-text/', { q }),
+  geojson: (filters) => api.get('/heritage/resources/geojson/', filters),
 
   projects: (filters) => api.get('/heritage/projects/', filters),
   project: (id) => api.get(`/heritage/projects/${id}/`),

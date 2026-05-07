@@ -29,6 +29,36 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
             return HeritageResourceWriteSerializer
         return HeritageResourceSerializer
 
+    @action(detail=False, methods=["get"], url_path="geojson", permission_classes=[permissions.AllowAny])
+    def geojson(self, request):
+        """
+        FeatureCollection of all heritage resources with a geo_point.
+        Lightweight payload tailored for Leaflet markers.
+        """
+        qs = HeritageResource.objects.exclude(geo_point__isnull=True)
+        # Allow the same filterset (period/wilaya/...) to apply
+        qs = self.filter_queryset(qs)
+        features = []
+        for r in qs:
+            features.append({
+                "type": "Feature",
+                "id": r.id,
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [r.geo_point.x, r.geo_point.y],
+                },
+                "properties": {
+                    "name_fr": r.name_fr,
+                    "name_ar": r.name_ar,
+                    "wilaya": r.wilaya,
+                    "commune": r.commune,
+                    "period": r.period,
+                    "architectural_type": r.architectural_type,
+                    "classification_level": r.classification_level,
+                },
+            })
+        return Response({"type": "FeatureCollection", "features": features})
+
     @action(detail=False, methods=["get"], url_path="full-text")
     def full_text(self, request):
         """PostgreSQL full-text search across name + description."""
