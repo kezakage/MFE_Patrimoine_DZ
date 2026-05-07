@@ -32,8 +32,10 @@ drf-spectacular==0.27.2
 
 # Search (PostgreSQL FTS shipped with Django; no extra package needed)
 
-# PDF export
-reportlab==4.2.0
+# PDF export — WeasyPrint produces PDF/A-1 from HTML/CSS
+WeasyPrint==62.3
+pydyf==0.10.0
+pikepdf==9.1.1
 
 # Dev / Quality
 python-dotenv==1.0.1

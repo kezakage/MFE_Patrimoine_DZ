@@ -48,44 +48,13 @@ def run_export_job(job_id: int):
 # ---------- builders ----------
 
 def _build_pdf(job) -> tuple[bytes, str]:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+    """PDF/A-1b export via WeasyPrint (ISO 19005-1, Dublin Core XMP)."""
+    from .services.pdf import render_project_pdf
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, title="PatrimoineHub export")
-    styles = getSampleStyleSheet()
-    story = []
-
-    project = job.project
-    title = project.resource.name_fr if project and project.resource else "PatrimoineHub export"
-    story.append(Paragraph(title, styles["Title"]))
-    story.append(Spacer(1, 12))
-
-    if project:
-        res = project.resource
-        story.append(Paragraph(f"<b>Wilaya:</b> {res.wilaya or '-'}", styles["Normal"]))
-        story.append(Paragraph(f"<b>Période:</b> {res.get_period_display() or '-'}", styles["Normal"]))
-        story.append(Paragraph(f"<b>Type:</b> {res.get_architectural_type_display() or '-'}", styles["Normal"]))
-        story.append(Paragraph(f"<b>Classement:</b> {res.get_classification_level_display() or '-'}", styles["Normal"]))
-        story.append(Spacer(1, 12))
-        if res.description_fr:
-            story.append(Paragraph(res.description_fr.replace("\n", "<br/>"), styles["BodyText"]))
-            story.append(Spacer(1, 12))
-
-        # pages
-        pages = project.pages.all().order_by("position")
-        for page in pages:
-            story.append(Paragraph(page.title, styles["Heading2"]))
-            cv = page.current_version
-            if cv:
-                # quick text dump
-                text = json.dumps(cv.content_json, ensure_ascii=False, indent=2)[:4000]
-                story.append(Paragraph(f"<pre>{text}</pre>", styles["Code"]))
-            story.append(Spacer(1, 8))
-
-    doc.build(story)
-    return buffer.getvalue(), f"export_{job.pk}.pdf"
+    if not job.project:
+        raise ValueError("PDF export requires a project")
+    payload = render_project_pdf(job.project)
+    return payload, f"export_{job.pk}.pdf"
 
 
 def _build_geojson(job) -> tuple[bytes, str]:
