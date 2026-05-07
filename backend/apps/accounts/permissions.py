@@ -16,16 +16,17 @@ class IsValidatedExpert(BasePermission):
 
 class IsExpertOrReadOnly(BasePermission):
     """
-    Read access for any authenticated user; write access reserved to validated
-    experts and admins.
+    Read access for everyone (including anonymous visitors of the public
+    catalogue); write access reserved to validated experts and admins.
     """
 
     def has_permission(self, request, view) -> bool:
-        if not (request.user and request.user.is_authenticated):
-            return False
         if request.method in SAFE_METHODS:
             return True
-        return request.user.role == User.Role.ADMIN or request.user.is_validated_expert
+        u = request.user
+        if not (u and u.is_authenticated):
+            return False
+        return u.role == User.Role.ADMIN or u.is_validated_expert
 
 
 class IsSelfOrAdmin(BasePermission):
