@@ -224,7 +224,13 @@ if USE_S3:
     AWS_S3_ADDRESSING_STYLE = env("AWS_S3_ADDRESSING_STYLE", "path")
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
-    AWS_QUERYSTRING_AUTH = True
+    # Public-facing host for generated URLs (browsers can't resolve the
+    # internal Docker DNS name "minio"). When set, django-storages emits
+    # plain URLs against this domain instead of presigned ones — relies on
+    # the bucket being publicly readable (set via `mc anonymous`).
+    AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN", "")
+    AWS_S3_URL_PROTOCOL = env("AWS_S3_URL_PROTOCOL", "https:")
+    AWS_QUERYSTRING_AUTH = env_bool("AWS_QUERYSTRING_AUTH", not bool(AWS_S3_CUSTOM_DOMAIN))
     AWS_S3_SIGNATURE_VERSION = "s3v4"
     STORAGES = {
         "default": {"BACKEND": "storages.backends.s3.S3Storage"},
