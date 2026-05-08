@@ -1,6 +1,7 @@
 import { Outlet, NavLink, Link } from 'react-router-dom'
 import { Compass, Home as HomeIcon, LogIn, UserPlus } from 'lucide-react'
 import Logo from '../components/Logo.jsx'
+import ChatbotWidget from '../components/ChatbotWidget.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function PublicLayout() {
@@ -69,6 +70,8 @@ export default function PublicLayout() {
           © {new Date().getFullYear()} Patrimoine.dz — Projet de fin d'études
         </div>
       </footer>
+
+      <ChatbotWidget />
     </div>
   )
 }

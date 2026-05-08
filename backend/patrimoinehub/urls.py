@@ -16,6 +16,7 @@ api_v1 = [
     path("discussions/", include("apps.discussions.urls")),
     path("exports/", include("apps.exports.urls")),
     path("notifications/", include("apps.notifications.urls")),
+    path("chat/", include("apps.chatbot.urls")),
 ]
 
 urlpatterns = [

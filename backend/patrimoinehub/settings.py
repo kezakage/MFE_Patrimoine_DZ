@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "apps.discussions",
     "apps.exports",
     "apps.notifications",
+    "apps.chatbot",
 ]
 
 MIDDLEWARE = [
@@ -151,7 +152,29 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "300/hour",
+        "user": "1200/hour",
+        "chat_anon": "10/hour",
+        "chat_user": "60/hour",
+    },
 }
+
+# ---------------------------------------------------------------------------
+# Chatbot RAG
+# ---------------------------------------------------------------------------
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", "claude-haiku-4-5")
+EMBEDDING_MODEL_NAME = env(
+    "EMBEDDING_MODEL_NAME",
+    "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+)
+CHATBOT_TOP_K = int(env("CHATBOT_TOP_K", "5"))
+CHATBOT_MAX_CONTEXT_CHARS = int(env("CHATBOT_MAX_CONTEXT_CHARS", "6000"))
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(env("JWT_ACCESS_LIFETIME_MIN", "60"))),

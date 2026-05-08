@@ -37,6 +37,11 @@ WeasyPrint==62.3
 pydyf==0.10.0
 pikepdf==9.1.1
 
+# Chatbot RAG — pgvector storage + sentence-transformers embeddings + Anthropic
+pgvector==0.3.6
+sentence-transformers==3.0.1
+anthropic==0.34.2
+
 # Dev / Quality
 python-dotenv==1.0.1
 factory-boy==3.3.0

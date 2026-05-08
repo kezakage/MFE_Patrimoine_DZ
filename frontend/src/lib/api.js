@@ -173,6 +173,18 @@ export const notifications = {
   markAllRead: () => api.post('/notifications/mark_all_read/'),
 }
 
+export const chat = {
+  ask: (message, { sessionId, anonKey } = {}) =>
+    api.post('/chat/ask/', {
+      message,
+      ...(sessionId ? { session_id: sessionId } : {}),
+      ...(anonKey ? { anon_key: anonKey } : {}),
+    }),
+  sessions: () => api.get('/chat/sessions/'),
+  session: (id) => api.get(`/chat/sessions/${id}/`),
+  deleteSession: (id) => api.del(`/chat/sessions/${id}/`),
+}
+
 export const adminApi = {
   users: () => api.get('/auth/admin/users/'),
   validateUser: (id, action = 'approve') =>
