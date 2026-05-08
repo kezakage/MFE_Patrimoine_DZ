@@ -49,6 +49,7 @@ services:
 
   web:
     build: .
+    image: patrimoinehub-app:latest
     command: >
       sh -c "python manage.py makemigrations accounts heritage pages media_app discussions exports notifications --noinput &&
              python manage.py migrate --noinput &&
@@ -74,7 +75,7 @@ services:
         condition: service_started
 
   worker:
-    build: .
+    image: patrimoinehub-app:latest
     command: celery -A patrimoinehub worker -l info
     env_file: .env
     environment:
@@ -92,7 +93,7 @@ services:
       - web
 
   beat:
-    build: .
+    image: patrimoinehub-app:latest
     command: celery -A patrimoinehub beat -l info
     env_file: .env
     environment:
