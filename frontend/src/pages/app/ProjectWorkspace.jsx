@@ -292,16 +292,39 @@ function MediaGallery({ projectId, coverColor }) {
         <div className="text-sand-500 text-center py-10">Aucun média. Importez votre première image.</div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {items.map((m) => (
-            <div key={m.id} className="aspect-[4/3] rounded-lg overflow-hidden relative bg-sand-100">
-              {m.thumbnail_url || m.file_url ? (
-                <img src={mediaUrl(m.thumbnail_url || m.file_url)} alt={m.caption || ''} className="w-full h-full object-cover"/>
-              ) : (
-                <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${coverColor}, #3e2417)` }}/>
-              )}
-              <div className="absolute bottom-2 left-2 text-white text-xs bg-black/40 px-2 py-0.5 rounded">{m.media_type}</div>
-            </div>
-          ))}
+          {items.map((m) => {
+            const topTag = Array.isArray(m.ai_tags) && m.ai_tags.length > 0 ? m.ai_tags[0] : null
+            return (
+              <div key={m.id} className="aspect-[4/3] rounded-lg overflow-hidden relative bg-sand-100 group">
+                {m.thumbnail_url || m.file_url ? (
+                  <img src={mediaUrl(m.thumbnail_url || m.file_url)} alt={m.caption || ''} className="w-full h-full object-cover"/>
+                ) : (
+                  <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${coverColor}, #3e2417)` }}/>
+                )}
+                <div className="absolute bottom-2 left-2 text-white text-xs bg-black/40 px-2 py-0.5 rounded">{m.media_type}</div>
+                {m.media_type === 'image' && (
+                  <div className="absolute top-2 left-2 right-2 flex flex-wrap gap-1">
+                    {m.ai_status === 'pending' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/90 text-white inline-flex items-center gap-1">
+                        <Loader2 className="animate-spin" size={10}/>IA…
+                      </span>
+                    )}
+                    {m.ai_status === 'failed' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/90 text-white">IA échec</span>
+                    )}
+                    {topTag && m.ai_status === 'done' && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-terracotta-600/95 text-white inline-flex items-center gap-1"
+                        title={m.ai_tags.map(t => `${t.label} ${(t.score * 100).toFixed(0)}%`).join(' · ')}
+                      >
+                        ✨ {topTag.label} · {Math.round(topTag.score * 100)}%
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

@@ -46,6 +46,23 @@ class Media(models.Model):
 
     geo_point = gis_models.PointField(geography=True, null=True, blank=True)
 
+    # CNN auto-annotation (CLIP zero-shot)
+    # Format: [{"label": "mosquée", "score": 0.87}, ...]
+    ai_tags = models.JSONField(default=list, blank=True)
+
+    class AiStatus(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        DONE = "done", _("Done")
+        FAILED = "failed", _("Failed")
+        SKIPPED = "skipped", _("Skipped")  # non-image files
+
+    ai_status = models.CharField(
+        max_length=8,
+        choices=AiStatus.choices,
+        default=AiStatus.PENDING,
+        db_index=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
