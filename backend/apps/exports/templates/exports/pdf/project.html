@@ -4,8 +4,10 @@
   <meta charset="utf-8">
   <title>{{ project.title }} — PatrimoineHub</title>
 
-  {# Standard meta — WeasyPrint maps these to PDF Info + XMP automatically.
-     The remaining Dublin Core terms are injected post-render by pikepdf. #}
+  {% comment %}
+  Standard meta — WeasyPrint maps these to PDF Info + XMP automatically.
+  The remaining Dublin Core terms are injected post-render by pikepdf.
+  {% endcomment %}
   <meta name="author" content="{{ project.created_by.full_name }}">
   <meta name="description" content="{{ project.description|truncatewords:40 }}">
   <meta name="keywords" content="{{ resource.name_fr }}, {{ resource.wilaya }}, {{ resource.get_period_display }}, {{ resource.get_architectural_type_display }}, patrimoine algérien">
@@ -70,6 +72,26 @@
     {% endif %}
   </section>
 {% endfor %}
+
+{# ───── GALLERY ───── #}
+{% if gallery %}
+  <section class="gallery">
+    <h2>Galerie iconographique</h2>
+    <div class="gallery-grid">
+      {% for img in gallery %}
+        <figure class="gallery-item">
+          <img src="{{ img.data_url }}" alt="{{ img.caption|default:'' }}"/>
+          {% if img.caption or img.credit %}
+            <figcaption>
+              {% if img.caption %}<span class="gallery-caption">{{ img.caption }}</span>{% endif %}
+              {% if img.credit %}<span class="gallery-credit">© {{ img.credit }}</span>{% endif %}
+            </figcaption>
+          {% endif %}
+        </figure>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
 
 {# ───── COLOPHON ───── #}
 <section class="colophon">

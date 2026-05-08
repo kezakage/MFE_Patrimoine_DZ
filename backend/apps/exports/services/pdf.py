@@ -6,8 +6,10 @@ metadata in its XMP packet, as required by the project specification.
 """
 from __future__ import annotations
 
+import base64
 import io
 import logging
+import mimetypes
 from pathlib import Path
 
 from django.template.loader import render_to_string
@@ -59,6 +61,8 @@ def render_project_pdf(project: Project) -> bytes:
             "html_body": tiptap_to_html(cv.content_json) if cv else "",
         })
 
+    gallery = _build_image_gallery(project)
+
     html_string = render_to_string(
         "exports/pdf/project.html",
         {
@@ -67,6 +71,7 @@ def render_project_pdf(project: Project) -> bytes:
             "members": members,
             "contributors_csv": contributors_csv,
             "pages": pages,
+            "gallery": gallery,
             "stylesheet": _stylesheet(),
             "generated_at": timezone.now(),
         },
@@ -88,6 +93,35 @@ def render_project_pdf(project: Project) -> bytes:
         resource=resource,
         contributors_csv=contributors_csv,
     )
+
+
+def _build_image_gallery(project: Project, *, max_items: int = 12) -> list[dict]:
+    """
+    Read each image Media attached to the project and embed it as a base64
+    data URL — WeasyPrint can render it without needing network access to
+    the storage backend (works for both local and S3/MinIO).
+    """
+    from apps.media.models import Media
+
+    items: list[dict] = []
+    qs = (
+        Media.objects.filter(project=project, media_type=Media.Type.IMAGE)
+        .order_by("created_at")[:max_items]
+    )
+    for m in qs:
+        try:
+            with m.file.open("rb") as fh:
+                data = fh.read()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PDF gallery: skipping media %s (%s)", m.pk, exc)
+            continue
+        mime = m.mime_type or mimetypes.guess_type(m.file.name)[0] or "image/jpeg"
+        items.append({
+            "data_url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}",
+            "caption": m.caption or "",
+            "credit": m.license or "",
+        })
+    return items
 
 
 def _enrich_dublin_core(
