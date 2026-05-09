@@ -321,6 +321,18 @@
       "send": "Envoyer"
     }
   },
+  "annotator": {
+    "empty": "Aucune annotation pour cette image. Tracez un rectangle pour la première.",
+    "labelPlaceholder": "Légende de l'annotation (ex. : minaret, voûte, mihrab…)",
+    "toValidate": "à valider",
+    "validate": "Valider",
+    "reject": "Rejeter",
+    "confirmDelete": "Supprimer cette annotation ?",
+    "noImages": "Aucune image à annoter sur ce projet.",
+    "noImagesHint": "Importez d'abord des images dans l'onglet « Médias ».",
+    "selectImage": "Sélectionnez une image dans la liste.",
+    "dragHint": "Cliquez-glissez sur l'image pour annoter."
+  },
   "search": {
     "title": "Recherche avancée",
     "placeholder": "Tapez un terme (FR / AR)…",

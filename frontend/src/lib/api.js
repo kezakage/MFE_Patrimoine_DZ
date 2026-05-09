@@ -154,10 +154,12 @@ export const pages = {
 
 export const media = {
   list: (project) => api.get('/media/', { project }),
+  listImages: (project) => api.get('/media/', { project, media_type: 'image' }),
   list3D: (project) => api.get('/media/', { project, media_type: 'model_3d' }),
   upload: (formData) => api.upload('/media/', formData),
   annotations: (filters) => api.get('/media/annotations/', filters),
   createAnnotation: (data) => api.post('/media/annotations/', data),
+  deleteAnnotation: (id) => api.del(`/media/annotations/${id}/`),
   validateAnnotation: (id) => api.post(`/media/annotations/${id}/validate_annotation/`),
   rejectAnnotation: (id) => api.post(`/media/annotations/${id}/reject/`),
 }

@@ -11,6 +11,7 @@ import Model3DViewer from '../../components/Model3DViewer.jsx'
 import RichEditor from '../../components/RichEditor.jsx'
 import VersionDiff from '../../components/VersionDiff.jsx'
 import DisciplineLegend from '../../components/DisciplineLegend.jsx'
+import MediaAnnotator from '../../components/MediaAnnotator.jsx'
 import { heritage, pages as pagesApi, media as mediaApi, discussions as discApi, mediaUrl } from '../../lib/api.js'
 import { projectToCard } from '../../data/projects.js'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -468,45 +469,142 @@ function Models3DPanel({ projectId }) {
   )
 }
 
+/**
+ * Image annotator panel.
+ *
+ * Lists the project's image-type media in a left rail; the selected one
+ * opens in <MediaAnnotator>. Drawing a rectangle prompts for a label and
+ * POSTs to /api/v1/media/annotations/. AI-generated tags from the CLIP
+ * pipeline (apps/media/tasks.annotate_image) are visible alongside manual
+ * ones, with validate/reject actions for moderators — exactly the human-
+ * in-the-loop workflow specified for the auto-annotation deliverable.
+ */
 function AnnotationsPanel({ projectId }) {
-  const [items, setItems] = useState([])
+  const { t } = useTranslation()
+  const { user } = useAuth() || {}
+  const [images, setImages] = useState([])
+  const [active, setActive] = useState(null)
+  const [annotations, setAnnotations] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Refresh just the annotations for the currently selected image.
+  const refreshAnn = async (mediaId) => {
+    if (!mediaId) { setAnnotations([]); return }
+    try {
+      const a = await mediaApi.annotations({ media: mediaId })
+      setAnnotations(Array.isArray(a) ? a : (a.results || []))
+    } catch (_) {
+      setAnnotations([])
+    }
+  }
+
   useEffect(() => {
-    // Fetch annotations on the project's media. For simplicity: list media, then annotations per media.
-    mediaApi.list(projectId).then(async (data) => {
-      const ms = Array.isArray(data) ? data : (data.results || [])
-      const all = []
-      for (const m of ms.slice(0, 20)) {
-        try {
-          const a = await mediaApi.annotations({ media: m.id })
-          const list = Array.isArray(a) ? a : (a.results || [])
-          all.push(...list)
-        } catch (_) {}
-      }
-      setItems(all)
-    }).finally(() => setLoading(false))
+    let cancelled = false
+    setLoading(true)
+    mediaApi.listImages(projectId)
+      .then(async (data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : (data.results || [])
+        setImages(list)
+        if (list.length > 0) {
+          setActive(list[0])
+          await refreshAnn(list[0].id)
+        }
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [projectId])
-  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+
+  const switchTo = async (m) => {
+    setActive(m)
+    await refreshAnn(m.id)
+  }
+
+  const handleCreate = async ({ geometry_json, body_text }) => {
+    if (!active) return
+    const disciplineId = user?.disciplines?.[0]?.id
+    await mediaApi.createAnnotation({
+      media: active.id,
+      geometry_json,
+      body_text,
+      ...(disciplineId ? { discipline: disciplineId } : {}),
+    })
+    await refreshAnn(active.id)
+  }
+
+  const handleValidate = async (id) => {
+    await mediaApi.validateAnnotation(id)
+    await refreshAnn(active?.id)
+  }
+
+  const handleReject = async (id) => {
+    await mediaApi.rejectAnnotation(id)
+    await refreshAnn(active?.id)
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm(t('annotator.confirmDelete'))) return
+    await mediaApi.deleteAnnotation(id)
+    await refreshAnn(active?.id)
+  }
+
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>{t('common.loading')}</div>
+
+  if (images.length === 0) {
+    return (
+      <div className="card p-10 text-center text-sand-500">
+        <Pin size={32} className="mx-auto text-sand-300"/>
+        <p className="mt-3">{t('annotator.noImages')}</p>
+        <p className="text-xs mt-1">{t('annotator.noImagesHint')}</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="card p-5">
-      <h3 className="font-semibold">Annotations du projet ({items.length})</h3>
-      {items.length === 0 ? (
-        <p className="text-sand-500 text-sm mt-3">Aucune annotation. Importez des médias et annotez-les.</p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {items.map((a) => (
-            <li key={a.id} className="flex gap-3 p-3 rounded-lg bg-sand-50 border border-sand-100">
-              <div className="w-7 h-7 rounded-full bg-terracotta-600 text-white grid place-items-center text-xs font-bold flex-shrink-0">
-                {a.is_ai_generated ? 'IA' : 'A'}
+    <div className="grid lg:grid-cols-4 gap-4">
+      <ul className="lg:col-span-1 card p-3 space-y-1 max-h-[520px] overflow-y-auto">
+        {images.map((m) => (
+          <li key={m.id}>
+            <button
+              onClick={() => switchTo(m)}
+              className={`w-full text-start px-2 py-2 rounded text-sm flex items-center gap-2 ${
+                active?.id === m.id ? 'bg-terracotta-50 text-terracotta-700' : 'hover:bg-sand-50'
+              }`}>
+              <div className="w-10 h-10 rounded overflow-hidden bg-sand-100 flex-shrink-0">
+                {(m.thumbnail_url || m.file_url) && (
+                  <img src={mediaUrl(m.thumbnail_url || m.file_url)} alt="" className="w-full h-full object-cover"/>
+                )}
               </div>
-              <div className="flex-1">
-                <div className="font-medium text-sm">{a.body_text || '(sans texte)'}</div>
-                <div className="text-xs text-sand-500">par {a.author?.full_name || a.author?.email || '—'}{a.is_validated ? '' : ' • à valider'}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+              <span className="truncate">{m.caption || `#${m.id}`}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="lg:col-span-3 card p-4">
+        {active ? (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Pin size={16}/>{active.caption || `#${active.id}`}
+              </h3>
+              <span className="text-xs text-sand-500">{t('annotator.dragHint')}</span>
+            </div>
+            <MediaAnnotator
+              mediaId={active.id}
+              src={mediaUrl(active.file_url)}
+              annotations={annotations}
+              currentUserId={user?.id}
+              onCreate={handleCreate}
+              onValidate={handleValidate}
+              onReject={handleReject}
+              onDelete={handleDelete}
+            />
+          </>
+        ) : (
+          <div className="text-sand-500 text-sm py-10 text-center">{t('annotator.selectImage')}</div>
+        )}
+      </div>
     </div>
   )
 }
