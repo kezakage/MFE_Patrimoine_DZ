@@ -87,6 +87,10 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # LocaleMiddleware must come AFTER SessionMiddleware (it can read the
+    # session-stored language) and BEFORE CommonMiddleware (which uses the
+    # active language to format URLs and error responses).
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -369,6 +373,9 @@ TIME_ZONE = "Africa/Algiers"
 USE_I18N = True
 USE_TZ = True
 LANGUAGES = [("fr", "Français"), ("ar", "العربية")]
+# Where Django looks for compiled translations. Each app may also ship its
+# own `locale/` directory; this central path covers project-wide strings.
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # ---------------------------------------------------------------------------
 # Static

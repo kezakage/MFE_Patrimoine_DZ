@@ -27,6 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         fonts-dejavu-core \
         fonts-noto-core \
         fonts-noto-cjk \
+        # i18n: makemessages + compilemessages
+        gettext \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

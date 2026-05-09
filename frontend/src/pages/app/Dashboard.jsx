@@ -4,6 +4,7 @@ import {
   FolderKanban, AlertTriangle, CheckCircle2, Activity, Sparkles,
   Users as UsersIcon, FileCheck2, BarChart3, ArrowRight, Bell
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotifications } from '../../context/NotificationsContext.jsx'
 import { heritage } from '../../lib/api.js'
@@ -36,6 +37,7 @@ export default function Dashboard() {
 }
 
 function ExpertDashboard({ user, notifs }) {
+  const { t } = useTranslation()
   const [myProjects, setMyProjects] = useState([])
   const [stats, setStats] = useState({ total: 0, published: 0, in_progress: 0 })
   useEffect(() => {
@@ -55,24 +57,24 @@ function ExpertDashboard({ user, notifs }) {
     <div className="space-y-6">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="section-title">Tableau de bord</h1>
-          <p className="section-subtitle">Vue d'ensemble de vos projets et activités.</p>
+          <h1 className="section-title">{t('dashboard.title')}</h1>
+          <p className="section-subtitle">{t('dashboard.subtitle')}</p>
         </div>
-        <Link to="/app/projets/nouveau" className="btn-primary">+ Nouveau projet</Link>
+        <Link to="/app/projets/nouveau" className="btn-primary">{t('appNav.newProject')}</Link>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={FolderKanban} label="Mes projets" value={stats.total}/>
-        <StatCard icon={CheckCircle2} label="Publiés" value={stats.published}/>
-        <StatCard icon={AlertTriangle} label="En cours" value={stats.in_progress}/>
-        <StatCard icon={FileCheck2} label="Notifications" value={notifs.length}/>
+        <StatCard icon={FolderKanban} label={t('dashboard.myProjects')} value={stats.total}/>
+        <StatCard icon={CheckCircle2} label={t('dashboard.published')} value={stats.published}/>
+        <StatCard icon={AlertTriangle} label={t('dashboard.inProgress')} value={stats.in_progress}/>
+        <StatCard icon={FileCheck2} label={t('dashboard.notificationsCount')} value={notifs.length}/>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <section className="lg:col-span-2 card p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Mes projets en cours</h2>
-            <Link to="/app/projets" className="text-sm text-terracotta-700 flex items-center gap-1">Tous <ArrowRight size={14}/></Link>
+            <h2 className="font-semibold">{t('dashboard.ongoingProjects')}</h2>
+            <Link to="/app/projets" className="text-sm text-terracotta-700 flex items-center gap-1">{t('dashboard.all')} <ArrowRight size={14}/></Link>
           </div>
           <ul className="divide-y divide-sand-100">
             {myProjects.map(p => (
@@ -90,7 +92,7 @@ function ExpertDashboard({ user, notifs }) {
 
         <section className="card p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold flex items-center gap-2"><Activity size={18}/>Activité récente</h2>
+            <h2 className="font-semibold flex items-center gap-2"><Activity size={18}/>{t('dashboard.recentActivity')}</h2>
           </div>
           <ul className="space-y-3 text-sm">
             {[
@@ -113,24 +115,24 @@ function ExpertDashboard({ user, notifs }) {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <section className="card p-5">
-          <h2 className="font-semibold flex items-center gap-2"><Sparkles size={18} className="text-terracotta-600"/>Suggestions</h2>
-          <p className="text-sm text-sand-600 mt-1">Projets que vous pourriez compléter selon votre discipline.</p>
+          <h2 className="font-semibold flex items-center gap-2"><Sparkles size={18} className="text-terracotta-600"/>{t('dashboard.suggestions')}</h2>
+          <p className="text-sm text-sand-600 mt-1">{t('dashboard.suggestionsBody')}</p>
           <ul className="mt-3 space-y-2">
-            {myProjects.length === 0 && <li className="text-sm text-sand-500 p-3">Aucune suggestion pour le moment.</li>}
+            {myProjects.length === 0 && <li className="text-sm text-sand-500 p-3">{t('dashboard.noSuggestions')}</li>}
             {myProjects.map(p => (
               <li key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-sand-50 border border-sand-100">
                 <div>
                   <Link to={`/app/projets/${p.id}`} className="font-medium hover:text-terracotta-700">{p.name}</Link>
                   <div className="text-xs text-sand-500">{p.type} — {p.region}</div>
                 </div>
-                <Link to={`/app/projets/${p.id}`} className="btn-ghost text-sm">Compléter</Link>
+                <Link to={`/app/projets/${p.id}`} className="btn-ghost text-sm">{t('dashboard.complete')}</Link>
               </li>
             ))}
           </ul>
         </section>
 
         <section className="card p-5">
-          <h2 className="font-semibold flex items-center gap-2"><Bell size={18}/>Notifications</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Bell size={18}/>{t('appNav.notifications')}</h2>
           <ul className="mt-3 space-y-2">
             {notifs.slice(0,4).map(n => (
               <li key={n.id} className="flex gap-3 p-3 rounded-lg bg-sand-50 border border-sand-100">
@@ -142,7 +144,7 @@ function ExpertDashboard({ user, notifs }) {
               </li>
             ))}
           </ul>
-          <Link to="/app/notifications" className="text-sm text-terracotta-700 mt-3 inline-flex items-center gap-1">Voir tout <ArrowRight size={14}/></Link>
+          <Link to="/app/notifications" className="text-sm text-terracotta-700 mt-3 inline-flex items-center gap-1">{t('dashboard.viewAll')} <ArrowRight size={14}/></Link>
         </section>
       </div>
     </div>
@@ -150,23 +152,24 @@ function ExpertDashboard({ user, notifs }) {
 }
 
 function AdminDashboard({ notifs }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="section-title">Tableau de bord — Administration</h1>
-        <p className="section-subtitle">Vue d'ensemble de l'activité de la plateforme.</p>
+        <h1 className="section-title">{t('dashboard.adminTitle')}</h1>
+        <p className="section-subtitle">{t('dashboard.adminSubtitle')}</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={UsersIcon} label="Utilisateurs" value="284"/>
-        <StatCard icon={FolderKanban} label="Projets" value="156"/>
-        <StatCard icon={AlertTriangle} label="Conflits ouverts" value="7"/>
-        <StatCard icon={FileCheck2} label="À valider" value="12"/>
+        <StatCard icon={UsersIcon} label={t('dashboard.users')} value="284"/>
+        <StatCard icon={FolderKanban} label={t('dashboard.projectsLabel')} value="156"/>
+        <StatCard icon={AlertTriangle} label={t('dashboard.openConflicts')} value="7"/>
+        <StatCard icon={FileCheck2} label={t('dashboard.toValidate')} value="12"/>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <section className="card p-5">
-          <h2 className="font-semibold">Demandes de validation expert</h2>
+          <h2 className="font-semibold">{t('dashboard.expertRequests')}</h2>
           <ul className="divide-y divide-sand-100 mt-2">
             {[
               { n:'Karim Saadi', i:'CNRPAH', d:'Histoire' },
@@ -181,16 +184,16 @@ function AdminDashboard({ notifs }) {
                   <div className="font-medium">{u.n}</div>
                   <div className="text-xs text-sand-500">{u.d} • {u.i}</div>
                 </div>
-                <button className="btn-secondary text-xs">Refuser</button>
-                <button className="btn-primary text-xs">Valider</button>
+                <button className="btn-secondary text-xs">{t('dashboard.reject')}</button>
+                <button className="btn-primary text-xs">{t('dashboard.approve')}</button>
               </li>
             ))}
           </ul>
-          <Link to="/app/admin/utilisateurs" className="text-sm text-terracotta-700 mt-3 inline-flex items-center gap-1">Tout gérer <ArrowRight size={14}/></Link>
+          <Link to="/app/admin/utilisateurs" className="text-sm text-terracotta-700 mt-3 inline-flex items-center gap-1">{t('dashboard.manageAll')} <ArrowRight size={14}/></Link>
         </section>
 
         <section className="card p-5">
-          <h2 className="font-semibold flex items-center gap-2"><BarChart3 size={18}/>Statistiques globales</h2>
+          <h2 className="font-semibold flex items-center gap-2"><BarChart3 size={18}/>{t('dashboard.globalStats')}</h2>
           <div className="grid grid-cols-2 gap-3 mt-3">
             {[
               { l:'Contributions / mois', v:'1 240', d:'+12%'},
@@ -207,12 +210,12 @@ function AdminDashboard({ notifs }) {
               </div>
             ))}
           </div>
-          <Link to="/app/admin/statistiques" className="text-sm text-terracotta-700 mt-4 inline-flex items-center gap-1">Voir le détail <ArrowRight size={14}/></Link>
+          <Link to="/app/admin/statistiques" className="text-sm text-terracotta-700 mt-4 inline-flex items-center gap-1">{t('dashboard.viewDetails')} <ArrowRight size={14}/></Link>
         </section>
       </div>
 
       <section className="card p-5">
-        <h2 className="font-semibold flex items-center gap-2"><AlertTriangle size={18} className="text-amber-600"/>Alertes récentes</h2>
+        <h2 className="font-semibold flex items-center gap-2"><AlertTriangle size={18} className="text-amber-600"/>{t('dashboard.recentAlerts')}</h2>
         <ul className="mt-3 space-y-2">
           {notifs.map(n => (
             <li key={n.id} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-100">

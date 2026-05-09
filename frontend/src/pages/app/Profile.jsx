@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Mail, Building2, GraduationCap, Save, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext.jsx'
 import Avatar from '../../components/Avatar.jsx'
 import { auth as authApi, heritage } from '../../lib/api.js'
@@ -9,6 +10,7 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 
 export default function Profile() {
   const { user, refresh } = useAuth()
+  const { t } = useTranslation()
   const [form, setForm] = useState({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -50,8 +52,8 @@ export default function Profile() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="section-title">Mon profil</h1>
-        <p className="section-subtitle">Informations personnelles, contributions et paramètres.</p>
+        <h1 className="section-title">{t('profile.title')}</h1>
+        <p className="section-subtitle">{t('profile.subtitle')}</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -61,9 +63,9 @@ export default function Profile() {
             <div className="mt-3 font-semibold text-lg">{user.name}</div>
             <div className="text-sm text-sand-600 capitalize">{user.role}</div>
             {user.validated ? (
-              <span className="chip bg-emerald-100 text-emerald-800 mt-3"><ShieldCheck size={14}/>Profil validé</span>
+              <span className="chip bg-emerald-100 text-emerald-800 mt-3"><ShieldCheck size={14}/>{t('profile.validated')}</span>
             ) : (
-              <span className="chip bg-amber-100 text-amber-800 mt-3"><ShieldAlert size={14}/>En attente de validation</span>
+              <span className="chip bg-amber-100 text-amber-800 mt-3"><ShieldAlert size={14}/>{t('profile.pending')}</span>
             )}
           </div>
           <ul className="mt-5 space-y-2 text-sm">
@@ -74,39 +76,39 @@ export default function Profile() {
         </section>
 
         <section className="card p-6 lg:col-span-2">
-          <h2 className="font-semibold mb-4">Informations personnelles</h2>
+          <h2 className="font-semibold mb-4">{t('profile.personalInfo')}</h2>
           <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <label className="label">Prénom</label>
+              <label className="label">{t('profile.firstName')}</label>
               <input className="input" value={form.first_name} onChange={set('first_name')}/>
             </div>
             <div>
-              <label className="label">Nom</label>
+              <label className="label">{t('profile.lastName')}</label>
               <input className="input" value={form.last_name} onChange={set('last_name')}/>
             </div>
             <div className="md:col-span-2">
-              <label className="label">Institution</label>
+              <label className="label">{t('profile.institution')}</label>
               <input className="input" value={form.institution_name} onChange={set('institution_name')}/>
             </div>
             <div className="md:col-span-2">
-              <label className="label">Biographie / domaine de recherche</label>
+              <label className="label">{t('profile.bio')}</label>
               <textarea rows={4} className="input resize-none" value={form.bio} onChange={set('bio')}
-                        placeholder="Décrivez votre champ d'expertise..."/>
+                        placeholder={t('profile.bioPlaceholder')}/>
             </div>
           </div>
           {error && <div className="mt-3 card p-3 text-red-700 bg-red-50 text-sm">{error}</div>}
-          {saved && <div className="mt-3 card p-3 text-emerald-800 bg-emerald-50 text-sm">Profil mis à jour.</div>}
+          {saved && <div className="mt-3 card p-3 text-emerald-800 bg-emerald-50 text-sm">{t('profile.saved')}</div>}
           <div className="mt-4 flex justify-end gap-2">
             <button onClick={save} disabled={saving} className="btn-primary">
-              {saving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Enregistrer
+              {saving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} {t('profile.save')}
             </button>
           </div>
         </section>
       </div>
 
       <section className="card p-6">
-        <h2 className="font-semibold mb-4">Mes contributions</h2>
-        {contribs.length === 0 && <div className="text-sand-500 text-sm">Aucune contribution.</div>}
+        <h2 className="font-semibold mb-4">{t('profile.myContributions')}</h2>
+        {contribs.length === 0 && <div className="text-sand-500 text-sm">{t('profile.noContributions')}</div>}
         <ul className="divide-y divide-sand-100">
           {contribs.map(p => (
             <li key={p.id} className="py-3 flex items-center gap-3">
