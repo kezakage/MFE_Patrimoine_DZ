@@ -312,6 +312,15 @@
     "editor": {
       "placeholder": "Rédigez le contenu de cette section…"
     },
+    "conflict": {
+      "title": "Conflit d'édition détecté",
+      "body": "{{who}} a enregistré une nouvelle version (v{{from}} → v{{to}}, le {{when}}) pendant que vous éditiez. Examinez ses modifications avant de poursuivre.",
+      "viewChanges": "Voir les changements",
+      "reload": "Recharger depuis le serveur",
+      "dismiss": "Ignorer",
+      "force": "Forcer l'enregistrement",
+      "forceTitle": "Écrase les modifications du serveur avec votre version locale."
+    },
     "discussion": {
       "title": "Discussions",
       "none": "Aucune discussion",

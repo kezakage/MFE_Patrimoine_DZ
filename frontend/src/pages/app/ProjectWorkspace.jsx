@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, History, Users as UsersIcon, MessageSquare, Image as ImageIcon,
   FileText, MapPin, Save, Eye, Pin, GitCompare, RotateCcw, Plus, Loader2, Upload,
-  Box as Box3D,
+  AlertTriangle, Box as Box3D,
 } from 'lucide-react'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import Model3DViewer from '../../components/Model3DViewer.jsx'
@@ -147,12 +147,35 @@ export default function ProjectWorkspace() {
 }
 
 function Editor({ projectId }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { user } = useAuth() || {}
+  const locale = i18n.language?.startsWith('ar') ? 'ar' : 'fr-FR'
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [drafts, setDrafts] = useState({})
+  // Each entry tracks the version the user *based their edits on*. If the
+  // server's current_version has moved past it, another contributor saved in
+  // between — that's the conflict we surface before letting the save go through.
+  const [baselines, setBaselines] = useState({})  // { [pageId]: { versionId, versionNumber } }
+  const [conflicts, setConflicts] = useState({})  // { [pageId]: { baseline, current } }
+  const [diffPair, setDiffPair] = useState(null)  // [a, b] for VersionDiff modal
+
+  // Helper: hydrate state from a fresh page list. Used at mount, after save,
+  // and after the user explicitly chooses "reload from server" on a conflict.
+  const ingestPages = (list, { resetDrafts = true } = {}) => {
+    setPages(list)
+    const b = {}
+    const d = {}
+    for (const p of list) {
+      const cv = p.current_version
+      b[p.id] = { versionId: cv?.id, versionNumber: cv?.version_number ?? 0 }
+      if (resetDrafts) d[p.id] = htmlFromContent(cv?.content_json)
+    }
+    setBaselines(b)
+    if (resetDrafts) setDrafts(d)
+    setConflicts({})
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -160,19 +183,50 @@ function Editor({ projectId }) {
       .then((data) => {
         if (cancelled) return
         const list = Array.isArray(data) ? data : (data.results || [])
-        setPages(list)
-        const d = {}
-        list.forEach((p) => { d[p.id] = htmlFromContent(p.current_version?.content_json) })
-        setDrafts(d)
+        ingestPages(list, { resetDrafts: true })
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [projectId])
 
-  const saveAll = async () => {
+  /**
+   * Save flow with optimistic concurrency check.
+   *
+   * The backend always appends a new version (no server-side rejection on
+   * conflict — see PageVersionViewSet.perform_create), so we detect conflicts
+   * client-side: refresh the page list, compare each page's current
+   * version_number to our baseline. If something has moved, we block the save
+   * for that page and let the user inspect / reload / force-save.
+   *
+   * Pass force=true to bypass the conflict gate (after the user has reviewed
+   * the diff and decided their edit takes priority).
+   */
+  const saveAll = async (force = false) => {
     setSaving(true)
     const disciplineId = user?.disciplines?.[0]?.id
     try {
+      // Concurrency check: refresh the page list and compare baselines.
+      const data = await pagesApi.list(projectId)
+      const fresh = Array.isArray(data) ? data : (data.results || [])
+      const freshById = Object.fromEntries(fresh.map(p => [p.id, p]))
+
+      if (!force) {
+        const detected = {}
+        for (const p of pages) {
+          const baseline = baselines[p.id]
+          const current = freshById[p.id]?.current_version
+          if (baseline && current && current.version_number > baseline.versionNumber) {
+            detected[p.id] = { baseline, current }
+          }
+        }
+        if (Object.keys(detected).length > 0) {
+          setConflicts(detected)
+          // Reflect newest version numbers in the header without overwriting drafts.
+          setPages(fresh)
+          return
+        }
+      }
+
       for (const p of pages) {
         const html = drafts[p.id] || ''
         await pagesApi.createVersion({
@@ -183,12 +237,34 @@ function Editor({ projectId }) {
           ...(disciplineId ? { discipline_id: disciplineId } : {}),
         })
       }
-      const data = await pagesApi.list(projectId)
-      const list = Array.isArray(data) ? data : (data.results || [])
-      setPages(list)
+      const after = await pagesApi.list(projectId)
+      const afterList = Array.isArray(after) ? after : (after.results || [])
+      ingestPages(afterList, { resetDrafts: false })
     } finally {
       setSaving(false)
     }
+  }
+
+  const reloadPageFromServer = (pageId) => {
+    const fresh = pages.find(p => p.id === pageId)
+    if (!fresh) return
+    setDrafts(d => ({ ...d, [pageId]: htmlFromContent(fresh.current_version?.content_json) }))
+    setBaselines(b => ({
+      ...b,
+      [pageId]: {
+        versionId: fresh.current_version?.id,
+        versionNumber: fresh.current_version?.version_number ?? 0,
+      },
+    }))
+    setConflicts(c => {
+      const next = { ...c }; delete next[pageId]; return next
+    })
+  }
+
+  const dismissConflict = (pageId) => {
+    setConflicts(c => {
+      const next = { ...c }; delete next[pageId]; return next
+    })
   }
 
   const addSection = async () => {
@@ -213,6 +289,7 @@ function Editor({ projectId }) {
           // version — fulfils the "color-coding contributors by discipline"
           // deliverable from the spec.
           const color = p.current_version?.discipline?.color_hex
+          const conflict = conflicts[p.id]
           return (
             <article key={p.id} className="group">
               <header
@@ -222,6 +299,15 @@ function Editor({ projectId }) {
                 <h3 className="font-display text-xl font-semibold">{p.title}</h3>
                 <span className="text-xs text-sand-500">v{p.current_version?.version_number ?? 0}</span>
               </header>
+              {conflict && (
+                <ConflictBanner
+                  conflict={conflict}
+                  locale={locale}
+                  onDiff={() => setDiffPair([conflict.baseline.versionId, conflict.current.id])}
+                  onReload={() => reloadPageFromServer(p.id)}
+                  onDismiss={() => dismissConflict(p.id)}
+                />
+              )}
               <RichEditor
                 value={drafts[p.id] || ''}
                 onChange={(html) => setDrafts({ ...drafts, [p.id]: html })}
@@ -231,13 +317,68 @@ function Editor({ projectId }) {
             </article>
           )
         })}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button className="btn-secondary" onClick={addSection}><Plus size={16}/>{t('projects.addSection')}</button>
           {pages.length > 0 && (
-            <button className="btn-primary" disabled={saving} onClick={saveAll}>
+            <button className="btn-primary" disabled={saving} onClick={() => saveAll(false)}>
               {saving && <Loader2 className="animate-spin" size={14}/>} {t('projects.saveAll')}
             </button>
           )}
+          {Object.keys(conflicts).length > 0 && (
+            <button
+              className="btn-danger"
+              disabled={saving}
+              onClick={() => saveAll(true)}
+              title={t('projects.conflict.forceTitle')}>
+              <AlertTriangle size={14}/>{t('projects.conflict.force')}
+            </button>
+          )}
+        </div>
+      </div>
+      {diffPair && (
+        <VersionDiff a={diffPair[0]} b={diffPair[1]} onClose={() => setDiffPair(null)}/>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Inline banner shown above an article when another contributor saved a new
+ * version of the same page since the editor was opened. The user can:
+ *   - inspect the changes (opens VersionDiff between baseline and current)
+ *   - reload from server (drops their local edits in favor of the new version)
+ *   - dismiss the banner (then click "Force save" to write anyway)
+ */
+function ConflictBanner({ conflict, locale, onDiff, onReload, onDismiss }) {
+  const { t } = useTranslation()
+  const cur = conflict.current
+  const who = cur.author?.full_name || cur.author?.email || '—'
+  const when = cur.created_at ? new Date(cur.created_at).toLocaleString(locale) : ''
+  return (
+    <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+      <div className="flex items-start gap-2">
+        <AlertTriangle size={16} className="text-amber-700 flex-shrink-0 mt-0.5"/>
+        <div className="flex-1">
+          <div className="font-medium text-amber-900">{t('projects.conflict.title')}</div>
+          <div className="text-amber-800 mt-0.5">
+            {t('projects.conflict.body', {
+              who,
+              when,
+              from: conflict.baseline.versionNumber,
+              to: cur.version_number,
+            })}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button onClick={onDiff} className="btn-secondary text-xs">
+              <GitCompare size={12}/>{t('projects.conflict.viewChanges')}
+            </button>
+            <button onClick={onReload} className="btn-ghost text-xs text-amber-900">
+              <RotateCcw size={12}/>{t('projects.conflict.reload')}
+            </button>
+            <button onClick={onDismiss} className="btn-ghost text-xs">
+              {t('projects.conflict.dismiss')}
+            </button>
+          </div>
         </div>
       </div>
     </div>
