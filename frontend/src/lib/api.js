@@ -49,7 +49,14 @@ async function request(path, { method = 'GET', body, query, headers, raw } = {})
   const url = new URL(path.startsWith('http') ? path : `${BASE}${path}`)
   if (query) {
     Object.entries(query).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') url.searchParams.append(k, v)
+      if (v === undefined || v === null || v === '') return
+      if (Array.isArray(v)) {
+        v.forEach(item => {
+          if (item !== undefined && item !== null && item !== '') url.searchParams.append(k, item)
+        })
+      } else {
+        url.searchParams.append(k, v)
+      }
     })
   }
 
@@ -117,6 +124,8 @@ export const heritage = {
   resource: (id) => api.get(`/heritage/resources/${id}/`),
   createResource: (data) => api.post('/heritage/resources/', data),
   fts: (q) => api.get('/heritage/resources/full-text/', { q }),
+  search: (params) => api.get('/heritage/resources/search/', params),
+  suggest: (q, size = 10) => api.get('/heritage/resources/suggest/', { q, size }),
   geojson: (filters) => api.get('/heritage/resources/geojson/', filters),
 
   projects: (filters) => api.get('/heritage/projects/', filters),

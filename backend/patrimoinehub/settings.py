@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "guardian",
     "storages",
+    "django_elasticsearch_dsl",
 
     # Local
     "apps.accounts",
@@ -163,6 +164,17 @@ REST_FRAMEWORK = {
         "chat_user": "60/hour",
     },
 }
+
+# ---------------------------------------------------------------------------
+# Elasticsearch
+# ---------------------------------------------------------------------------
+ELASTICSEARCH_URL = env("ELASTICSEARCH_URL", "http://elasticsearch:9200")
+ELASTICSEARCH_DSL = {
+    "default": {"hosts": ELASTICSEARCH_URL, "timeout": 20},
+}
+# Index real-time on save/delete signals (django-elasticsearch-dsl)
+ELASTICSEARCH_DSL_AUTOSYNC = env_bool("ELASTICSEARCH_DSL_AUTOSYNC", True)
+ELASTICSEARCH_DSL_AUTO_REFRESH = env_bool("ELASTICSEARCH_DSL_AUTO_REFRESH", True)
 
 # ---------------------------------------------------------------------------
 # Chatbot RAG

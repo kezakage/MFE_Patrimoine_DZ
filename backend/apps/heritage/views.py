@@ -1,10 +1,12 @@
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from elasticsearch_dsl import Q as ESQ
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsExpertOrReadOnly
 
+from .documents import HeritageResourceDocument
 from .filters import HeritageResourceFilter, ProjectFilter
 from .models import HeritageResource, Project, ProjectMember
 from .permissions import IsProjectMemberOrReadOnlyPublic
@@ -61,7 +63,7 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="full-text")
     def full_text(self, request):
-        """PostgreSQL full-text search across name + description."""
+        """PostgreSQL full-text search across name + description (legacy fallback)."""
         q = request.query_params.get("q", "").strip()
         if not q:
             return Response([])
@@ -73,6 +75,132 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
             .order_by("-rank")[:50]
         )
         return Response(HeritageResourceSerializer(qs, many=True).data)
+
+    @action(detail=False, methods=["get"], url_path="search", permission_classes=[permissions.AllowAny])
+    def es_search(self, request):
+        """
+        Elasticsearch-powered search with multilingual matching, filters, facets, highlights.
+
+        Query params:
+          q: full-text query (matched against name_fr, name_ar, description, wilaya.text, commune)
+          period, architectural_type, classification_level, wilaya: exact-match filters
+                  (repeat the param for OR semantics, e.g. ?period=ottoman&period=colonial)
+          page, size: pagination (default page=1, size=20, max size=100)
+        """
+        q = request.query_params.get("q", "").strip()
+        try:
+            page = max(int(request.query_params.get("page", 1)), 1)
+            size = min(max(int(request.query_params.get("size", 20)), 1), 100)
+        except ValueError:
+            page, size = 1, 20
+
+        s = HeritageResourceDocument.search()
+
+        if q:
+            # cross_fields lets a single query token match across the multilingual fields
+            s = s.query(
+                "multi_match",
+                query=q,
+                fields=[
+                    "name_fr^3", "name_fr.keyword^4",
+                    "name_ar^3", "name_ar.keyword^4",
+                    "description",
+                    "wilaya.text", "commune",
+                ],
+                type="best_fields",
+                fuzziness="AUTO",
+            )
+
+        # OR-style facet filters (multi-valued query params)
+        for facet in ("period", "architectural_type", "classification_level", "wilaya"):
+            values = request.query_params.getlist(facet)
+            if values:
+                s = s.filter("terms", **{facet: values})
+
+        # Aggregations (facets) — computed against the *filtered* set
+        s.aggs.bucket("period", "terms", field="period", size=20)
+        s.aggs.bucket("architectural_type", "terms", field="architectural_type", size=30)
+        s.aggs.bucket("classification_level", "terms", field="classification_level", size=10)
+        s.aggs.bucket("wilaya", "terms", field="wilaya", size=60)
+
+        # Highlights — returned only for fields that actually matched
+        s = s.highlight_options(pre_tags=["<mark>"], post_tags=["</mark>"], number_of_fragments=2)
+        s = s.highlight("name_fr", "name_ar", "description")
+
+        # Pagination
+        start = (page - 1) * size
+        s = s[start:start + size]
+
+        try:
+            response = s.execute()
+        except Exception as exc:  # ES unavailable, etc. — degrade gracefully
+            return Response(
+                {"error": "search_unavailable", "detail": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        results = []
+        for hit in response:
+            src = hit.to_dict()
+            results.append({
+                "id": int(hit.meta.id),
+                "score": hit.meta.score,
+                "name_fr": src.get("name_fr"),
+                "name_ar": src.get("name_ar"),
+                "description": src.get("description"),
+                "period": src.get("period"),
+                "architectural_type": src.get("architectural_type"),
+                "classification_level": src.get("classification_level"),
+                "wilaya": src.get("wilaya"),
+                "commune": src.get("commune"),
+                "location": src.get("location"),
+                "highlight": getattr(hit.meta, "highlight", {}).to_dict()
+                if hasattr(getattr(hit.meta, "highlight", None), "to_dict") else {},
+            })
+
+        facets = {
+            name: [{"key": b.key, "count": b.doc_count} for b in response.aggregations[name].buckets]
+            for name in ("period", "architectural_type", "classification_level", "wilaya")
+        }
+
+        return Response({
+            "total": response.hits.total.value,
+            "page": page,
+            "size": size,
+            "results": results,
+            "facets": facets,
+        })
+
+    @action(detail=False, methods=["get"], url_path="suggest", permission_classes=[permissions.AllowAny])
+    def suggest(self, request):
+        """Autocomplete on resource names (uses ES completion suggester on name_fr.suggest)."""
+        prefix = request.query_params.get("q", "").strip()
+        if not prefix:
+            return Response([])
+        size = min(max(int(request.query_params.get("size", 10) or 10), 1), 25)
+
+        s = HeritageResourceDocument.search()
+        s = s.suggest(
+            "name_suggest",
+            prefix,
+            completion={"field": "name_fr.suggest", "size": size, "skip_duplicates": True},
+        )
+        try:
+            response = s.execute()
+        except Exception as exc:
+            return Response(
+                {"error": "search_unavailable", "detail": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        out = []
+        for option in response.suggest.name_suggest[0].options:
+            out.append({
+                "id": int(option._id),
+                "text": option.text,
+                "score": option._score,
+            })
+        return Response(out)
 
 
 class ProjectViewSet(viewsets.ModelViewSet):

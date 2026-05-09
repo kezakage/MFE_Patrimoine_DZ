@@ -30,7 +30,10 @@ Pillow==10.3.0
 # API docs
 drf-spectacular==0.27.2
 
-# Search (PostgreSQL FTS shipped with Django; no extra package needed)
+# Search — Elasticsearch
+django-elasticsearch-dsl==8.0
+elasticsearch-dsl==8.13.1
+elasticsearch==8.13.2
 
 # PDF export — WeasyPrint produces PDF/A-1 from HTML/CSS
 WeasyPrint==62.3
