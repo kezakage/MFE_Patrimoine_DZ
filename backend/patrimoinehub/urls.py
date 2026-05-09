@@ -27,6 +27,11 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+
+    # Prometheus metrics — scraped by the prometheus container on the docker network.
+    # Exposed publicly because the dev cluster is firewalled; in production this
+    # should be limited via reverse-proxy ACL or moved to a separate port.
+    path("", include("django_prometheus.urls")),
 ]
 
 if settings.DEBUG and not settings.USE_S3:

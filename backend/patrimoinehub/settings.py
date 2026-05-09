@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "guardian",
     "storages",
     "django_elasticsearch_dsl",
+    "django_prometheus",
 
     # Local
     "apps.accounts",
@@ -71,6 +72,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # django-prometheus must wrap all other middleware to time the full request
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -79,6 +82,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "patrimoinehub.urls"
@@ -107,7 +111,8 @@ ASGI_APPLICATION = "patrimoinehub.asgi.application"
 # ---------------------------------------------------------------------------
 DATABASES = {
     "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        # django-prometheus wraps the PostGIS backend to expose query/connection metrics
+        "ENGINE": "django_prometheus.db.backends.postgis",
         "NAME": env("POSTGRES_DB", "patrimoinehub"),
         "USER": env("POSTGRES_USER", "patrimoine"),
         "PASSWORD": env("POSTGRES_PASSWORD", "patrimoine"),
