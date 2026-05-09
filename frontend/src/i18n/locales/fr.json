@@ -296,7 +296,21 @@
       "noVersions": "Aucune version. Enregistrez des modifications dans l'éditeur.",
       "restore": "Restaurer",
       "confirmRestore": "Restaurer cette version ?",
-      "noSummary": "(sans description)"
+      "noSummary": "(sans description)",
+      "compare": "Comparer",
+      "selectTwo": "Sélectionnez deux versions à comparer.",
+      "compareSelected": "Comparer la sélection",
+      "clear": "Réinitialiser"
+    },
+    "diff": {
+      "title": "Comparaison de versions",
+      "identical": "Aucune différence entre les deux versions."
+    },
+    "legend": {
+      "title": "Légende des disciplines"
+    },
+    "editor": {
+      "placeholder": "Rédigez le contenu de cette section…"
     },
     "discussion": {
       "title": "Discussions",

@@ -296,7 +296,21 @@
       "noVersions": "لا توجد نسخ. احفظ تعديلاتك في المحرر.",
       "restore": "استعادة",
       "confirmRestore": "هل تريد استعادة هذه النسخة؟",
-      "noSummary": "(بدون وصف)"
+      "noSummary": "(بدون وصف)",
+      "compare": "مقارنة",
+      "selectTwo": "اختر نسختين للمقارنة.",
+      "compareSelected": "مقارنة المحدد",
+      "clear": "إعادة تعيين"
+    },
+    "diff": {
+      "title": "مقارنة النسخ",
+      "identical": "لا يوجد فرق بين النسختين."
+    },
+    "legend": {
+      "title": "دليل التخصصات"
+    },
+    "editor": {
+      "placeholder": "اكتب محتوى هذا القسم…"
     },
     "discussion": {
       "title": "النقاشات",

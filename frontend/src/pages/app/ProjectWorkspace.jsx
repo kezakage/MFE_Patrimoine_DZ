@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Navigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, History, Users as UsersIcon, MessageSquare, Image as ImageIcon,
-  Bold, Italic, Underline, List as ListIcon, Heading1, Quote, Table, MapPin,
-  AlertTriangle, Save, Eye, Pin, GitCompare, RotateCcw, Plus, Loader2, Upload,
-  Box as Box3D, Trash2,
+  FileText, MapPin, Save, Eye, Pin, GitCompare, RotateCcw, Plus, Loader2, Upload,
+  Box as Box3D,
 } from 'lucide-react'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import Model3DViewer from '../../components/Model3DViewer.jsx'
+import RichEditor from '../../components/RichEditor.jsx'
+import VersionDiff from '../../components/VersionDiff.jsx'
+import DisciplineLegend from '../../components/DisciplineLegend.jsx'
 import { heritage, pages as pagesApi, media as mediaApi, discussions as discApi, mediaUrl } from '../../lib/api.js'
 import { projectToCard } from '../../data/projects.js'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 const TABS = [
-  { k: 'edit', label: 'Éditeur', icon: Bold },
+  { k: 'edit', label: 'Éditeur', icon: FileText },
   { k: 'media', label: 'Médias & galerie', icon: ImageIcon },
   { k: 'models3d', label: '3D', icon: Box3D },
   { k: 'annotations', label: 'Annotations', icon: Pin },
@@ -22,11 +26,15 @@ const TABS = [
 
 export default function ProjectWorkspace() {
   const { id } = useParams()
+  const { t } = useTranslation()
   const [project, setProject] = useState(null)
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('edit')
   const [notFound, setNotFound] = useState(false)
+  // Disciplines that have authored at least one version on this project — used
+  // by the dynamic legend in the sidebar and to color-code section headers.
+  const [projectDisciplines, setProjectDisciplines] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -34,18 +42,26 @@ export default function ProjectWorkspace() {
     Promise.all([
       heritage.project(id),
       heritage.members(id).catch(() => []),
+      pagesApi.list(id).catch(() => []),
     ])
-      .then(([proj, mem]) => {
+      .then(([proj, mem, pgs]) => {
         if (cancelled) return
         setProject({ raw: proj, ...projectToCard(proj) })
         setMembers(Array.isArray(mem) ? mem : [])
+        const list = Array.isArray(pgs) ? pgs : (pgs.results || [])
+        const seen = new Map()
+        for (const p of list) {
+          const d = p.current_version?.discipline
+          if (d && !seen.has(d.id)) seen.set(d.id, d)
+        }
+        setProjectDisciplines(Array.from(seen.values()))
       })
       .catch((e) => { if (e.status === 404) setNotFound(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [id])
 
-  if (loading) return <div className="text-sand-600 inline-flex items-center gap-2 p-6"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+  if (loading) return <div className="text-sand-600 inline-flex items-center gap-2 p-6"><Loader2 className="animate-spin" size={16}/>{t('common.loading')}</div>
   if (notFound || !project) return <Navigate to="/app/projets" replace/>
 
   return (
@@ -112,9 +128,11 @@ export default function ProjectWorkspace() {
             </ul>
           </div>
 
+          <DisciplineLegend disciplines={projectDisciplines}/>
+
           {project.lat != null && project.lng != null && (
             <div className="card p-5">
-              <h3 className="font-semibold flex items-center gap-2"><MapPin size={16}/>Localisation</h3>
+              <h3 className="font-semibold flex items-center gap-2"><MapPin size={16}/>{t('projects.location')}</h3>
               <div className="mt-3 h-32 rounded-lg map-bg relative overflow-hidden">
                 <div className="absolute" style={{ top:'40%', left:'45%' }}><MapPin className="text-terracotta-700" size={24}/></div>
               </div>
@@ -127,18 +145,9 @@ export default function ProjectWorkspace() {
   )
 }
 
-function Toolbar() {
-  return (
-    <div className="flex flex-wrap gap-1 border-b border-sand-200 p-2 bg-sand-50">
-      {[Heading1, Bold, Italic, Underline, Quote, ListIcon, Table, ImageIcon].map((Ic, i) => (
-        <button key={i} className="p-2 rounded hover:bg-white text-sand-700"><Ic size={16}/></button>
-      ))}
-      <div className="ml-auto text-xs text-sand-500 self-center pr-2">Auto-sauvegarde activée</div>
-    </div>
-  )
-}
-
 function Editor({ projectId }) {
+  const { t } = useTranslation()
+  const { user } = useAuth() || {}
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -152,7 +161,7 @@ function Editor({ projectId }) {
         const list = Array.isArray(data) ? data : (data.results || [])
         setPages(list)
         const d = {}
-        list.forEach((p) => { d[p.id] = textFromContent(p.current_version?.content_json) })
+        list.forEach((p) => { d[p.id] = htmlFromContent(p.current_version?.content_json) })
         setDrafts(d)
       })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -161,17 +170,18 @@ function Editor({ projectId }) {
 
   const saveAll = async () => {
     setSaving(true)
+    const disciplineId = user?.disciplines?.[0]?.id
     try {
       for (const p of pages) {
-        const text = drafts[p.id] || ''
+        const html = drafts[p.id] || ''
         await pagesApi.createVersion({
           page: p.id,
-          content_json: contentFromText(text),
-          change_summary: 'Édition',
+          content_json: contentFromHtml(html),
+          change_summary: t('common.edit'),
           status: 'draft',
+          ...(disciplineId ? { discipline_id: disciplineId } : {}),
         })
       }
-      // refresh
       const data = await pagesApi.list(projectId)
       const list = Array.isArray(data) ? data : (data.results || [])
       setPages(list)
@@ -181,7 +191,7 @@ function Editor({ projectId }) {
   }
 
   const addSection = async () => {
-    const title = prompt('Titre de la nouvelle section')
+    const title = prompt(t('projects.promptSectionTitle'))
     if (!title) return
     await pagesApi.create({ project: projectId, title, position: pages.length })
     const data = await pagesApi.list(projectId)
@@ -189,35 +199,42 @@ function Editor({ projectId }) {
     setPages(list)
   }
 
-  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>{t('common.loading')}</div>
 
   return (
     <div className="card overflow-hidden">
-      <Toolbar/>
       <div className="p-6 space-y-6">
         {pages.length === 0 && (
-          <div className="text-center text-sand-500 py-10">Aucune section pour ce projet.</div>
+          <div className="text-center text-sand-500 py-10">{t('projects.noSection')}</div>
         )}
-        {pages.map((p) => (
-          <article key={p.id} className="group">
-            <header className="flex items-center justify-between mb-2">
-              <h3 className="font-display text-xl font-semibold">{p.title}</h3>
-              <span className="text-xs text-sand-500">v{p.current_version?.version_number ?? 0}</span>
-            </header>
-            <textarea
-              rows={4}
-              className="input resize-y w-full"
-              value={drafts[p.id] || ''}
-              onChange={(e) => setDrafts({ ...drafts, [p.id]: e.target.value })}
-              placeholder="Rédigez le contenu de cette section..."
-            />
-          </article>
-        ))}
+        {pages.map((p) => {
+          // Color the section header with the author-discipline of the latest
+          // version — fulfils the "color-coding contributors by discipline"
+          // deliverable from the spec.
+          const color = p.current_version?.discipline?.color_hex
+          return (
+            <article key={p.id} className="group">
+              <header
+                className="flex items-center justify-between mb-2 ps-3 border-s-4"
+                style={{ borderColor: color || 'transparent' }}
+              >
+                <h3 className="font-display text-xl font-semibold">{p.title}</h3>
+                <span className="text-xs text-sand-500">v{p.current_version?.version_number ?? 0}</span>
+              </header>
+              <RichEditor
+                value={drafts[p.id] || ''}
+                onChange={(html) => setDrafts({ ...drafts, [p.id]: html })}
+                placeholder={t('projects.editor.placeholder')}
+                borderColor={color}
+              />
+            </article>
+          )
+        })}
         <div className="flex gap-2">
-          <button className="btn-secondary" onClick={addSection}><Plus size={16}/>Ajouter une section</button>
+          <button className="btn-secondary" onClick={addSection}><Plus size={16}/>{t('projects.addSection')}</button>
           {pages.length > 0 && (
             <button className="btn-primary" disabled={saving} onClick={saveAll}>
-              {saving && <Loader2 className="animate-spin" size={14}/>} Enregistrer toutes les sections
+              {saving && <Loader2 className="animate-spin" size={14}/>} {t('projects.saveAll')}
             </button>
           )}
         </div>
@@ -226,27 +243,37 @@ function Editor({ projectId }) {
   )
 }
 
-function textFromContent(content) {
+/**
+ * Read content from a PageVersion.content_json JSONField. Supports two shapes:
+ *   - new: { format: "quill", html: "<p>…</p>" }   (current Quill output)
+ *   - legacy: { type: "doc", content: [...] }       (old Tiptap-style JSON)
+ * Returns HTML safe to feed into <RichEditor>; falls back to plain string.
+ */
+function htmlFromContent(content) {
   if (!content) return ''
   if (typeof content === 'string') return content
-  if (content.text) return content.text
-  // tiptap-like: { type: 'doc', content: [{type:'paragraph', content:[{type:'text', text:''}]}] }
+  if (content.format === 'quill' && typeof content.html === 'string') return content.html
+  // Legacy tiptap-like fallback: turn paragraphs into <p>…</p>
   try {
     if (Array.isArray(content.content)) {
-      return content.content.map(b => (b.content || []).map(c => c.text || '').join('')).join('\n\n')
+      return content.content.map(b => {
+        const txt = (b.content || []).map(c => c.text || '').join('')
+        return `<p>${escapeHtml(txt)}</p>`
+      }).join('')
     }
   } catch (_) {}
-  return JSON.stringify(content)
+  if (typeof content.text === 'string') return `<p>${escapeHtml(content.text)}</p>`
+  return ''
 }
 
-function contentFromText(text) {
-  return {
-    type: 'doc',
-    content: text.split('\n\n').filter(Boolean).map((para) => ({
-      type: 'paragraph',
-      content: [{ type: 'text', text: para }],
-    })),
-  }
+function contentFromHtml(html) {
+  return { format: 'quill', html: html || '' }
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
 function MediaGallery({ projectId, coverColor }) {
@@ -485,8 +512,14 @@ function AnnotationsPanel({ projectId }) {
 }
 
 function VersionHistory({ projectId }) {
+  const { t, i18n } = useTranslation()
   const [versions, setVersions] = useState([])
   const [loading, setLoading] = useState(true)
+  // Up to 2 version IDs the user has selected for visual diffing.
+  const [picked, setPicked] = useState([])
+  const [diffPair, setDiffPair] = useState(null)
+  const locale = i18n.language?.startsWith('ar') ? 'ar' : 'fr-FR'
+
   const refresh = async () => {
     const data = await pagesApi.list(projectId)
     const ps = Array.isArray(data) ? data : (data.results || [])
@@ -504,40 +537,84 @@ function VersionHistory({ projectId }) {
   useEffect(() => { refresh().finally(() => setLoading(false)) }, [projectId])
 
   const restore = async (versionId) => {
-    if (!confirm('Restaurer cette version ?')) return
+    if (!confirm(t('projects.history.confirmRestore'))) return
     await pagesApi.restore(versionId)
     await refresh()
   }
 
-  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+  const togglePick = (id) => {
+    setPicked((cur) => {
+      if (cur.includes(id)) return cur.filter(x => x !== id)
+      if (cur.length >= 2) return [cur[1], id] // sliding window of 2
+      return [...cur, id]
+    })
+  }
+
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>{t('common.loading')}</div>
   return (
     <div className="card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">Historique des versions ({versions.length})</h3>
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <h3 className="font-semibold">{t('projects.history.title')} ({versions.length})</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-sand-500">
+            {picked.length === 0 ? t('projects.history.selectTwo')
+              : picked.length === 1 ? `1/2`
+              : `2/2`}
+          </span>
+          <button
+            disabled={picked.length !== 2}
+            onClick={() => setDiffPair([picked[0], picked[1]])}
+            className="btn-secondary text-xs disabled:opacity-50">
+            <GitCompare size={12}/>{t('projects.history.compareSelected')}
+          </button>
+          {picked.length > 0 && (
+            <button onClick={() => setPicked([])} className="btn-ghost text-xs">
+              {t('projects.history.clear')}
+            </button>
+          )}
+        </div>
       </div>
       {versions.length === 0 ? (
-        <p className="text-sand-500 text-sm">Aucune version. Enregistrez des modifications dans l'éditeur.</p>
+        <p className="text-sand-500 text-sm">{t('projects.history.noVersions')}</p>
       ) : (
-        <ul className="relative pl-6 border-l-2 border-sand-200 space-y-5">
-          {versions.map((v, i) => (
-            <li key={v.id} className="relative">
-              <span className="absolute -left-[31px] w-4 h-4 rounded-full bg-terracotta-600 ring-4 ring-white"/>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <div className="font-medium">v{v.version_number} — {v.change_summary || '(sans description)'}</div>
-                  <div className="text-xs text-sand-500">
-                    {v.pageTitle} • {v.author?.full_name || v.author?.email || '—'} • {new Date(v.created_at).toLocaleString('fr-FR')}
-                  </div>
+        <ul className="relative ps-6 border-s-2 border-sand-200 space-y-5">
+          {versions.map((v, i) => {
+            const checked = picked.includes(v.id)
+            const dotColor = v.discipline?.color_hex || '#cd5028'
+            return (
+              <li key={v.id} className="relative">
+                <span
+                  className="absolute -start-[31px] w-4 h-4 rounded-full ring-4 ring-white"
+                  style={{ background: dotColor }}
+                />
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePick(v.id)}
+                      className="mt-1 accent-terracotta-600"
+                    />
+                    <span>
+                      <span className="font-medium">v{v.version_number} — {v.change_summary || t('projects.history.noSummary')}</span>
+                      <span className="block text-xs text-sand-500">
+                        {v.pageTitle} • {v.author?.full_name || v.author?.email || '—'} • {new Date(v.created_at).toLocaleString(locale)}
+                      </span>
+                    </span>
+                  </label>
+                  {i > 0 && (
+                    <button onClick={() => restore(v.id)} className="btn-ghost text-xs text-terracotta-700">
+                      <RotateCcw size={12}/>{t('projects.history.restore')}
+                    </button>
+                  )}
                 </div>
-                {i > 0 && (
-                  <button onClick={() => restore(v.id)} className="btn-ghost text-xs text-terracotta-700">
-                    <RotateCcw size={12}/>Restaurer
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
+      )}
+      {diffPair && (
+        <VersionDiff a={diffPair[0]} b={diffPair[1]} onClose={() => setDiffPair(null)}/>
       )}
     </div>
   )

@@ -149,7 +149,7 @@ export const pages = {
   versions: (page) => api.get('/pages/versions/', { page }),
   createVersion: (data) => api.post('/pages/versions/', data),
   restore: (versionId) => api.post(`/pages/versions/${versionId}/restore/`),
-  diff: (versionId, against) => api.get(`/pages/versions/${versionId}/diff/`, { against }),
+  diff: (a, b) => api.get('/pages/versions/diff/', { a, b }),
 }
 
 export const media = {
