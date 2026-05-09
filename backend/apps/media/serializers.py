@@ -1,8 +1,18 @@
+import os
+
 from rest_framework import serializers
 
 from apps.accounts.serializers import UserMiniSerializer
 
 from .models import Annotation, Media
+
+# 3D model whitelist — GLB is the universal cross-platform format,
+# GLTF is its JSON-text counterpart. We accept both extensions and the
+# canonical mime types. Browsers often report empty/octet-stream for GLB,
+# so extension is authoritative.
+GLB_EXTENSIONS = (".glb", ".gltf")
+GLB_MIME_TYPES = ("model/gltf-binary", "model/gltf+json")
+MAX_MODEL_3D_BYTES = 50 * 1024 * 1024  # 50 MB
 
 
 class MediaSerializer(serializers.ModelSerializer):
@@ -61,6 +71,23 @@ class MediaUploadSerializer(serializers.ModelSerializer):
             "caption", "license",
             "longitude", "latitude",
         )
+
+    def validate(self, attrs):
+        media_type = attrs.get("media_type")
+        f = attrs.get("file")
+        if media_type == Media.Type.MODEL_3D and f is not None:
+            ext = os.path.splitext(getattr(f, "name", "") or "")[1].lower()
+            mime = (getattr(f, "content_type", "") or "").lower()
+            if ext not in GLB_EXTENSIONS and mime not in GLB_MIME_TYPES:
+                raise serializers.ValidationError({
+                    "file": "Only .glb or .gltf 3D models are accepted.",
+                })
+            size = getattr(f, "size", 0) or 0
+            if size > MAX_MODEL_3D_BYTES:
+                raise serializers.ValidationError({
+                    "file": f"3D model exceeds {MAX_MODEL_3D_BYTES // (1024 * 1024)} MB limit.",
+                })
+        return attrs
 
     def create(self, validated_data):
         from django.contrib.gis.geos import Point

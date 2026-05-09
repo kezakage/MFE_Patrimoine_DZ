@@ -18,6 +18,7 @@ class Media(models.Model):
         IMAGE = "image", _("Image")
         VIDEO = "video", _("Video")
         DOCUMENT = "document", _("Document")
+        MODEL_3D = "model_3d", _("3D model")
 
     project = models.ForeignKey(
         Project, null=True, blank=True,

@@ -154,6 +154,7 @@ export const pages = {
 
 export const media = {
   list: (project) => api.get('/media/', { project }),
+  list3D: (project) => api.get('/media/', { project, media_type: 'model_3d' }),
   upload: (formData) => api.upload('/media/', formData),
   annotations: (filters) => api.get('/media/annotations/', filters),
   createAnnotation: (data) => api.post('/media/annotations/', data),

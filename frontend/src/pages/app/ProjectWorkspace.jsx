@@ -4,14 +4,17 @@ import {
   ArrowLeft, History, Users as UsersIcon, MessageSquare, Image as ImageIcon,
   Bold, Italic, Underline, List as ListIcon, Heading1, Quote, Table, MapPin,
   AlertTriangle, Save, Eye, Pin, GitCompare, RotateCcw, Plus, Loader2, Upload,
+  Box as Box3D, Trash2,
 } from 'lucide-react'
 import StatusBadge from '../../components/StatusBadge.jsx'
+import Model3DViewer from '../../components/Model3DViewer.jsx'
 import { heritage, pages as pagesApi, media as mediaApi, discussions as discApi, mediaUrl } from '../../lib/api.js'
 import { projectToCard } from '../../data/projects.js'
 
 const TABS = [
   { k: 'edit', label: 'Éditeur', icon: Bold },
   { k: 'media', label: 'Médias & galerie', icon: ImageIcon },
+  { k: 'models3d', label: '3D', icon: Box3D },
   { k: 'annotations', label: 'Annotations', icon: Pin },
   { k: 'history', label: 'Historique', icon: History },
   { k: 'discussion', label: 'Discussion', icon: MessageSquare },
@@ -83,6 +86,7 @@ export default function ProjectWorkspace() {
         <div className="lg:col-span-3 space-y-5">
           {tab === 'edit' && <Editor projectId={project.id}/>}
           {tab === 'media' && <MediaGallery projectId={project.id} coverColor={project.coverColor}/>}
+          {tab === 'models3d' && <Models3DPanel projectId={project.id}/>}
           {tab === 'annotations' && <AnnotationsPanel projectId={project.id}/>}
           {tab === 'history' && <VersionHistory projectId={project.id}/>}
           {tab === 'discussion' && <DiscussionTab projectId={project.id}/>}
@@ -325,6 +329,112 @@ function MediaGallery({ projectId, coverColor }) {
               </div>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Models3DPanel({ projectId }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+  const [active, setActive] = useState(null)
+
+  const refresh = async () => {
+    const data = await mediaApi.list3D(projectId)
+    const list = Array.isArray(data) ? data : (data.results || [])
+    setItems(list)
+    if (!active && list.length > 0) setActive(list[0])
+    if (active && !list.find(m => m.id === active.id)) setActive(list[0] || null)
+  }
+
+  useEffect(() => { refresh().finally(() => setLoading(false)) }, [projectId])
+
+  const onUpload = async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setError('')
+    setUploading(true)
+    try {
+      for (const f of files) {
+        const name = (f.name || '').toLowerCase()
+        if (!name.endsWith('.glb') && !name.endsWith('.gltf')) {
+          setError(`Format non supporté : ${f.name}. Utilisez .glb ou .gltf.`)
+          continue
+        }
+        const fd = new FormData()
+        fd.append('file', f)
+        fd.append('project', projectId)
+        fd.append('media_type', 'model_3d')
+        fd.append('caption', f.name)
+        await mediaApi.upload(fd)
+      }
+      await refresh()
+    } catch (err) {
+      setError(err?.message || 'Erreur lors de l\'import du modèle 3D.')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  if (loading) return <div className="card p-6 text-sand-600 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>Chargement...</div>
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-semibold flex items-center gap-2"><Box3D size={18}/>Modèles 3D du projet ({items.length})</h3>
+            <p className="text-xs text-sand-500 mt-1">
+              Format : <code className="px-1 py-0.5 rounded bg-sand-100">.glb</code> ou <code className="px-1 py-0.5 rounded bg-sand-100">.gltf</code> · max 50 Mo · le bouton AR apparaît sur les appareils mobiles compatibles.
+            </p>
+          </div>
+          <input id="m3d-up" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" multiple className="hidden" onChange={onUpload}/>
+          <label htmlFor="m3d-up" className="btn-primary text-sm cursor-pointer">
+            {uploading ? <Loader2 className="animate-spin" size={14}/> : <Upload size={14}/>} Importer un modèle
+          </label>
+        </div>
+        {error && <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2">{error}</div>}
+      </div>
+
+      {items.length === 0 ? (
+        <div className="card p-10 text-center text-sand-500">
+          <Box3D size={32} className="mx-auto text-sand-300"/>
+          <p className="mt-3">Aucun modèle 3D pour ce projet.</p>
+          <p className="text-xs mt-1">Importez un fichier GLB exporté depuis Blender, RealityCapture ou Sketchfab.</p>
+        </div>
+      ) : (
+        <div className="grid lg:grid-cols-4 gap-4">
+          <ul className="lg:col-span-1 card p-3 space-y-1 max-h-[480px] overflow-y-auto">
+            {items.map((m) => (
+              <li key={m.id}>
+                <button onClick={() => setActive(m)}
+                  className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 ${
+                    active?.id === m.id ? 'bg-terracotta-50 text-terracotta-700' : 'hover:bg-sand-50'
+                  }`}>
+                  <Box3D size={14} className="flex-shrink-0"/>
+                  <span className="truncate">{m.caption || `Modèle #${m.id}`}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="lg:col-span-3 card p-3">
+            {active ? (
+              <>
+                <Model3DViewer src={mediaUrl(active.file_url)} alt={active.caption || 'Modèle 3D'} className="rounded-lg"/>
+                <div className="mt-3 px-1 flex items-center justify-between text-xs text-sand-500">
+                  <span>{active.caption || `Modèle #${active.id}`}{active.size_bytes ? ` · ${(active.size_bytes / (1024 * 1024)).toFixed(1)} Mo` : ''}</span>
+                  <span>Manipulez avec la souris · auto-rotation</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-sand-500 text-sm py-10 text-center">Sélectionnez un modèle.</div>
+            )}
+          </div>
         </div>
       )}
     </div>
