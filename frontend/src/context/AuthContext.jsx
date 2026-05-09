@@ -95,6 +95,28 @@ export function AuthProvider({ children }) {
   }
 
   /**
+   * SSO login. Called from the OAuth callback page after the provider has
+   * redirected back with a `code`. Backend swaps the code for tokens against
+   * the provider, links/creates the User, returns a SimpleJWT pair.
+   */
+  const loginWithSocial = async (provider, code, redirect_uri) => {
+    setError(null)
+    try {
+      const data = await auth.socialLogin(provider, code, redirect_uri)
+      const access = data.access || data.access_token
+      const refresh = data.refresh || data.refresh_token
+      if (!access) throw new Error('No access token returned')
+      tokens.set(access, refresh)
+      const u = data.user || await auth.me()
+      setUser(normalize(u))
+      return true
+    } catch (e) {
+      setError(e.data?.detail || e.data?.error || e.message || 'Échec de la connexion sociale')
+      return false
+    }
+  }
+
+  /**
    * Quick login as a demo persona (uses seeded users from `seed_demo_users`).
    * Maps the old role keys (expert/chercheur/admin) to real demo accounts.
    */
@@ -109,7 +131,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, loginAs, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, loginAs, loginWithSocial, register, logout }}>
       {children}
     </AuthContext.Provider>
   )

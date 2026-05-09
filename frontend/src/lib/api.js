@@ -116,6 +116,10 @@ export const auth = {
   refresh: (refresh) => api.post('/auth/refresh/', { refresh }),
   register: (data) => api.post('/auth/register/', data),
   me: () => api.get('/auth/me/'),
+  // OAuth2 / SSO
+  socialProviders: () => api.get('/auth/social/providers/'),
+  socialLogin: (provider, code, redirect_uri) =>
+    api.post(`/auth/social/${provider}/`, { code, redirect_uri }),
   updateMe: (id, data) => api.patch(`/auth/me/${id}/`, data),
 }
 

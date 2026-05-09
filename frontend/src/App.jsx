@@ -14,6 +14,7 @@ import Login from './pages/auth/Login.jsx'
 import Register from './pages/auth/Register.jsx'
 import VerifyEmail from './pages/auth/VerifyEmail.jsx'
 import ForgotPassword from './pages/auth/ForgotPassword.jsx'
+import SocialCallback from './pages/auth/SocialCallback.jsx'
 
 // User
 import Dashboard from './pages/app/Dashboard.jsx'
@@ -57,6 +58,8 @@ export default function App() {
         <Route path="inscription" element={<Register />} />
         <Route path="verification-email" element={<VerifyEmail />} />
         <Route path="mot-de-passe-oublie" element={<ForgotPassword />} />
+        {/* OAuth provider redirects land here with ?code=... */}
+        <Route path="auth/:provider/callback" element={<SocialCallback />} />
       </Route>
 
       {/* App (auth required) */}

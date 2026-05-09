@@ -8,6 +8,11 @@ django-cors-headers==4.3.1
 djangorestframework-simplejwt==5.3.1
 django-guardian==2.4.0
 
+# Social auth (OAuth2 / SSO) — django-allauth handles the provider dance,
+# dj-rest-auth wraps it with REST endpoints that mint our SimpleJWT pair.
+django-allauth==0.63.6
+dj-rest-auth==6.0.0
+
 # DB & GIS
 psycopg[binary]==3.1.19
 # PostGIS support comes built-in via django.contrib.gis

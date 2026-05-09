@@ -60,6 +60,16 @@ INSTALLED_APPS = [
     "django_elasticsearch_dsl",
     "django_prometheus",
 
+    # Social auth (OAuth2 / SSO)
+    "django.contrib.sites",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.github",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+
     # Local
     "apps.accounts",
     "apps.heritage",
@@ -82,6 +92,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Required by django-allauth >= 0.56 — manages the per-request auth state.
+    "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
@@ -129,7 +141,66 @@ AUTH_USER_MODEL = "accounts.User"
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
     "guardian.backends.ObjectPermissionBackend",
+    # Required for django-allauth's social-account flow.
+    "allauth.account.auth_backends.AuthenticationBackend",
 )
+
+# ---------------------------------------------------------------------------
+# Social auth (OAuth2 / SSO) — django-allauth + dj-rest-auth
+# ---------------------------------------------------------------------------
+SITE_ID = 1
+
+# Allauth — keep things minimal: no signup forms (we use REST), email-based,
+# trust the provider's verified email so we skip our own confirmation flow.
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*"]
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_UNIQUE_EMAIL = True
+# Our custom User model has no `username` field — tell allauth/dj-rest-auth
+# to use email as the identifier and skip username-related serializer fields.
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_ADAPTER = "apps.accounts.allauth_adapters.AccountAdapter"
+SOCIALACCOUNT_ADAPTER = "apps.accounts.allauth_adapters.SocialAccountAdapter"
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": env("GOOGLE_OAUTH_CLIENT_ID", ""),
+            "secret": env("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+            "key": "",
+        },
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    },
+    "github": {
+        "APP": {
+            "client_id": env("GITHUB_OAUTH_CLIENT_ID", ""),
+            "secret": env("GITHUB_OAUTH_CLIENT_SECRET", ""),
+            "key": "",
+        },
+        "SCOPE": ["read:user", "user:email"],
+    },
+}
+
+# Where the provider sends the browser back after consent. The frontend
+# handles that route, extracts ?code=, and POSTs it to the matching social
+# login endpoint (which mints our SimpleJWT pair).
+SOCIAL_REDIRECT_FRONTEND = env("SOCIAL_REDIRECT_FRONTEND", "http://localhost:5173")
+
+# dj-rest-auth — return SimpleJWT tokens (not Django sessions) on social login.
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_HTTPONLY": False,
+    "JWT_AUTH_RETURN_EXPIRATION": True,
+    "TOKEN_MODEL": None,  # we don't use DRF's auth-token, only JWT
+    "SESSION_LOGIN": False,
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
