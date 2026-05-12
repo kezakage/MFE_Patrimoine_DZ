@@ -76,13 +76,21 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         ser = ValidateExpertSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
 
-        if ser.validated_data["decision"] == "approve":
+        approved = ser.validated_data["decision"] == "approve"
+        if approved:
             user.status = User.Status.ACTIVE
             user.validated_by = request.user
             user.validated_at = timezone.now()
         else:
             user.status = User.Status.REJECTED
         user.save(update_fields=["status", "validated_by", "validated_at"])
+
+        # Push real-time WS notification to the user being validated.
+        try:
+            from apps.notifications.utils import notify_expert_decision
+            notify_expert_decision(user, approved=approved)
+        except Exception:
+            pass
         return Response(UserSerializer(user).data)
 
     @action(detail=True, methods=["post"], url_path="suspend")

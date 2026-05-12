@@ -361,7 +361,14 @@
   "notifications": {
     "title": "Notifications",
     "empty": "Aucune notification.",
-    "markAllRead": "Tout marquer comme lu"
+    "markAllRead": "Tout marquer comme lu",
+    "toast": {
+      "approved": "Votre compte expert a été approuvé",
+      "rejected": "Votre demande expert a été refusée",
+      "published": "Le projet « {{title}} » est maintenant public",
+      "newMessage": "Nouveau message dans {{discussion}}",
+      "dismiss": "Fermer"
+    }
   },
   "exports": {
     "title": "Centre d'export",

@@ -49,6 +49,41 @@ def push_many(recipients: Iterable, **kwargs) -> list[Notification]:
 
 # ---------- specialized helpers ----------
 
+def notify_expert_decision(user, *, approved: bool) -> None:
+    """Push when an admin approves or rejects an expert account request."""
+    if approved:
+        push(
+            user,
+            type=Notification.Type.EXPERT_VALIDATED,
+            title="Statut expert validé",
+            body="Votre demande a été approuvée. Vous accédez maintenant aux outils de l'espace expert.",
+            url="/app/profil",
+        )
+    else:
+        push(
+            user,
+            type=Notification.Type.EXPERT_REJECTED,
+            title="Statut expert refusé",
+            body="Votre demande de statut expert a été refusée. Contactez l'équipe pour plus d'informations.",
+            url="/app/profil",
+        )
+
+
+def notify_project_published(project) -> None:
+    """Push to every project member when the project transitions to published."""
+    recipients = list(project.members.all())
+    if not recipients:
+        return
+    push_many(
+        recipients,
+        type=Notification.Type.VERSION_PUBLISHED,
+        title=f"Projet publié — {project.title}",
+        body="Le projet vient d'être publié et est maintenant visible publiquement.",
+        url=f"/projets-publics/{project.resource_id}" if project.resource_id else f"/app/projets/{project.pk}",
+        payload={"project_id": project.pk},
+    )
+
+
 def notify_discussion_message(message) -> None:
     """Notify all participants of a discussion (except author)."""
     discussion = message.discussion

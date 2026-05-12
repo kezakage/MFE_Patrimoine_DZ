@@ -361,7 +361,14 @@
   "notifications": {
     "title": "الإشعارات",
     "empty": "لا توجد إشعارات.",
-    "markAllRead": "تعليم الكل كمقروء"
+    "markAllRead": "تعليم الكل كمقروء",
+    "toast": {
+      "approved": "تمت الموافقة على حساب الخبير الخاص بك",
+      "rejected": "تم رفض طلب الخبير الخاص بك",
+      "published": "أصبح المشروع « {{title}} » متاحًا للعموم",
+      "newMessage": "رسالة جديدة في {{discussion}}",
+      "dismiss": "إغلاق"
+    }
   },
   "exports": {
     "title": "مركز التصدير",

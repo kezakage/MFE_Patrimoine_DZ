@@ -257,8 +257,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="publish")
     def publish(self, request, pk=None):
         project = self.get_object()
+        was_published = project.status == Project.Status.PUBLISHED
         project.status = Project.Status.PUBLISHED
         project.save(update_fields=["status", "updated_at"])
+        # Notify project members on the transition (avoid spamming on idempotent re-publish).
+        if not was_published:
+            try:
+                from apps.notifications.utils import notify_project_published
+                notify_project_published(project)
+            except Exception:
+                pass
         return Response(ProjectSerializer(project).data)
 
 
