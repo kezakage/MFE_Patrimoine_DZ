@@ -1,4 +1,5 @@
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from drf_spectacular.utils import extend_schema
 from elasticsearch_dsl import Q as ESQ
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -254,6 +255,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
         ProjectMember.objects.filter(project=project, user_id=user_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(
+        summary="Publish a project to the public space",
+        description=(
+            "Transitions the project's `status` to `PUBLISHED`, making it visible "
+            "on the public map and explore pages. Idempotent: re-publishing an already "
+            "published project is a no-op and does not re-notify members. On the first "
+            "transition, every project member receives a real-time WebSocket notification."
+        ),
+        request=None,
+        responses={200: ProjectSerializer},
+        tags=["projects"],
+    )
     @action(detail=True, methods=["post"], url_path="publish")
     def publish(self, request, pk=None):
         project = self.get_object()

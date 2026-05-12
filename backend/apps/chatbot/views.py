@@ -10,7 +10,8 @@ localStorage) so their history is groupable without any account.
 """
 from __future__ import annotations
 
-from rest_framework import permissions, status, viewsets
+from drf_spectacular.utils import OpenApiExample, extend_schema, inline_serializer
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -48,6 +49,35 @@ class AskView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ChatAnonRateThrottle, ChatUserRateThrottle]
 
+    @extend_schema(
+        summary="Ask the heritage chatbot a question",
+        description=(
+            "Runs a retrieval-augmented generation (RAG) cycle: retrieves relevant "
+            "chunks from the heritage knowledge base, asks Claude for a grounded answer, "
+            "and persists both turns in the chat session. Anonymous callers may pass "
+            "`anon_key` (an opaque token stored in browser localStorage) so their history "
+            "is groupable without an account. Rate-limited per user/IP."
+        ),
+        request=AskSerializer,
+        responses={
+            200: inline_serializer(
+                name="AskResponse",
+                fields={
+                    "session_id": serializers.IntegerField(),
+                    "user_message": ChatMessageSerializer(),
+                    "assistant_message": ChatMessageSerializer(),
+                    "model": serializers.CharField(),
+                },
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                "Ask about Casbah",
+                value={"message": "Quelle est l'histoire de la Casbah d'Alger ?"},
+            ),
+        ],
+        tags=["chatbot"],
+    )
     def post(self, request):
         ser = AskSerializer(data=request.data)
         ser.is_valid(raise_exception=True)

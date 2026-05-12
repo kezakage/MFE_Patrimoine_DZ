@@ -1,4 +1,5 @@
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -70,6 +71,21 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     filterset_fields = ("role", "status")
     search_fields = ("email", "first_name", "last_name", "institution_name")
 
+    @extend_schema(
+        summary="Approve or reject an expert account request",
+        description=(
+            "Admin-only. Transitions a user's `status` to either `ACTIVE` (on approve) or "
+            "`REJECTED` (on reject). On success, a real-time WebSocket notification is "
+            "pushed to the user via `/ws/notifications/` so the frontend can display a toast."
+        ),
+        request=ValidateExpertSerializer,
+        responses={200: UserSerializer},
+        examples=[
+            OpenApiExample("Approve", value={"decision": "approve"}),
+            OpenApiExample("Reject", value={"decision": "reject", "note": "Profil incomplet"}),
+        ],
+        tags=["admin"],
+    )
     @action(detail=True, methods=["post"], url_path="validate")
     def validate(self, request, pk=None):
         user = self.get_object()

@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -38,6 +39,17 @@ class MediaViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
+    @extend_schema(
+        summary="List annotations attached to a media",
+        description=(
+            "Returns all annotations (manual and AI-generated) for the given media, "
+            "including author, discipline, geometry (bounding box), and validation status. "
+            "AI-generated annotations from CLIP zero-shot classification are flagged "
+            "with `is_ai_generated=true` and may be unvalidated by experts."
+        ),
+        responses={200: AnnotationSerializer(many=True)},
+        tags=["media"],
+    )
     @action(detail=True, methods=["get"])
     def annotations(self, request, pk=None):
         media = self.get_object()
@@ -61,6 +73,17 @@ class AnnotationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    @extend_schema(
+        summary="Validate an AI-generated annotation",
+        description=(
+            "Marks an annotation as expert-validated, recording the validating user. "
+            "Typically applied to AI-generated annotations (CLIP) once an expert has "
+            "reviewed the suggested label and bounding box."
+        ),
+        request=None,
+        responses={200: AnnotationSerializer},
+        tags=["media"],
+    )
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def validate_annotation(self, request, pk=None):
         """Validate an AI-generated annotation."""
@@ -70,6 +93,17 @@ class AnnotationViewSet(viewsets.ModelViewSet):
         annotation.save(update_fields=["is_validated", "validated_by"])
         return Response(AnnotationSerializer(annotation, context={"request": request}).data)
 
+    @extend_schema(
+        summary="Reject an AI-generated annotation",
+        description=(
+            "Deletes an AI-generated annotation that an expert deemed incorrect. "
+            "Returns HTTP 400 if the annotation is not AI-generated — manual annotations "
+            "must be deleted through the standard DELETE endpoint instead."
+        ),
+        request=None,
+        responses={204: None, 400: None},
+        tags=["media"],
+    )
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def reject(self, request, pk=None):
         """Reject (delete) an AI-generated annotation."""
