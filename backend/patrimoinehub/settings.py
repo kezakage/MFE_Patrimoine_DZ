@@ -86,6 +86,9 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise must come right after SecurityMiddleware so it can serve
+    # /static/ files in production without an extra nginx in front of Daphne.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # LocaleMiddleware must come AFTER SessionMiddleware (it can read the
     # session-stored language) and BEFORE CommonMiddleware (which uses the
@@ -383,4 +386,65 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# WhiteNoise: compressed + hashed static files in production. The S3 storage
+# branch above only overrides "default" (media) — staticfiles stays local so
+# Django and WhiteNoise can serve /static/ without round-tripping to S3.
+if not DEBUG:
+    STORAGES["staticfiles"] = {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    }
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# ---------------------------------------------------------------------------
+# Production hardening — only applied when DJANGO_DEBUG=0
+# ---------------------------------------------------------------------------
+# Fail loudly if someone deploys with DEBUG=0 but forgot to override the
+# placeholder secret. Better to crash on boot than ship a known-public key.
+if not DEBUG and SECRET_KEY == "insecure-dev-key-change-me":
+    raise RuntimeError(
+        "DJANGO_SECRET_KEY must be set to a real value when DJANGO_DEBUG=0. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(50))\""
+    )
+
+# Likewise, refuse to start in prod with the wildcard host that's convenient
+# for dev but unsafe behind a reverse proxy.
+if not DEBUG and (not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS):
+    raise RuntimeError(
+        "DJANGO_ALLOWED_HOSTS must list explicit hostnames when DJANGO_DEBUG=0 "
+        "(no wildcard)."
+    )
+
+if not DEBUG:
+    # Trust the X-Forwarded-Proto header set by the reverse proxy (nginx)
+    # so request.is_secure() returns True for HTTPS-terminated traffic.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # HSTS — 1 year, includeSubDomains, preload-ready. Tunable via env so
+    # operators can dial it back during the initial HTTPS rollout.
+    SECURE_HSTS_SECONDS = int(env("DJANGO_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_HSTS_INCLUDE_SUBDOMAINS", True)
+    SECURE_HSTS_PRELOAD = env_bool("DJANGO_HSTS_PRELOAD", True)
+
+    # Force HTTPS at the Django layer too (defence in depth — the reverse
+    # proxy should already redirect).
+    SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
+
+    # Cookies must only travel over HTTPS in prod.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = False  # JS reads the CSRF token to set the header
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+
+    # Misc browser hardening
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    X_FRAME_OPTIONS = "DENY"
+
+    # CSRF: the frontend lives on a different origin behind the same proxy,
+    # so allow it explicitly. Configured via env so we don't bake a hostname
+    # into the codebase.
+    CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", [])
