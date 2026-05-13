@@ -156,6 +156,7 @@ export const media = {
   list: (project) => api.get('/media/', { project }),
   listImages: (project) => api.get('/media/', { project, media_type: 'image' }),
   list3D: (project) => api.get('/media/', { project, media_type: 'model_3d' }),
+  retrieve: (id) => api.get(`/media/${id}/`),
   upload: (formData) => api.upload('/media/', formData),
   annotations: (filters) => api.get('/media/annotations/', filters),
   createAnnotation: (data) => api.post('/media/annotations/', data),

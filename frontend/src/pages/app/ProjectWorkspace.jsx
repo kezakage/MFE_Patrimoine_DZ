@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, History, Users as UsersIcon, MessageSquare, Image as ImageIcon,
   FileText, MapPin, Save, Eye, Pin, GitCompare, RotateCcw, Plus, Loader2, Upload,
-  AlertTriangle, Box as Box3D,
+  AlertTriangle, Box as Box3D, Smartphone,
 } from 'lucide-react'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import Model3DViewer from '../../components/Model3DViewer.jsx'
+import ARShareModal from '../../components/ARShareModal.jsx'
 import RichEditor from '../../components/RichEditor.jsx'
 import VersionDiff from '../../components/VersionDiff.jsx'
 import DisciplineLegend from '../../components/DisciplineLegend.jsx'
@@ -510,6 +511,7 @@ function Models3DPanel({ projectId }) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [active, setActive] = useState(null)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const refresh = async () => {
     const data = await mediaApi.list3D(projectId)
@@ -595,9 +597,17 @@ function Models3DPanel({ projectId }) {
             {active ? (
               <>
                 <Model3DViewer src={mediaUrl(active.file_url)} alt={active.caption || 'Modèle 3D'} className="rounded-lg"/>
-                <div className="mt-3 px-1 flex items-center justify-between text-xs text-sand-500">
-                  <span>{active.caption || `Modèle #${active.id}`}{active.size_bytes ? ` · ${(active.size_bytes / (1024 * 1024)).toFixed(1)} Mo` : ''}</span>
-                  <span>Manipulez avec la souris · auto-rotation</span>
+                <div className="mt-3 px-1 flex items-center justify-between gap-3 text-xs text-sand-500">
+                  <span className="truncate">{active.caption || `Modèle #${active.id}`}{active.size_bytes ? ` · ${(active.size_bytes / (1024 * 1024)).toFixed(1)} Mo` : ''}</span>
+                  <button
+                    type="button"
+                    onClick={() => setShareOpen(true)}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded px-2 py-1 text-terracotta-700 hover:bg-terracotta-50"
+                    aria-label="Voir en réalité augmentée (QR code)"
+                  >
+                    <Smartphone size={14} aria-hidden="true" />
+                    <span>Voir en RA</span>
+                  </button>
                 </div>
               </>
             ) : (
@@ -606,6 +616,13 @@ function Models3DPanel({ projectId }) {
           </div>
         </div>
       )}
+
+      <ARShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        mediaId={active?.id}
+        caption={active?.caption}
+      />
     </div>
   )
 }

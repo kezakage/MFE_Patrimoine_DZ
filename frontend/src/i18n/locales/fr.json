@@ -386,5 +386,13 @@
     "notFound": "Élément introuvable.",
     "pageNotFound": "Page introuvable",
     "pageNotFoundBody": "La page que vous cherchez n'existe pas ou a été déplacée."
+  },
+  "ar": {
+    "title": "Visite en réalité augmentée",
+    "back": "Retour",
+    "loading": "Chargement du modèle 3D…",
+    "tapARButton": "Appuyez sur l’icône RA pour placer le modèle dans votre environnement.",
+    "errorLoad": "Impossible de charger ce modèle 3D.",
+    "errorNotModel": "Cet élément n’est pas un modèle 3D."
   }
 }

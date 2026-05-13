@@ -8,6 +8,7 @@ import RequireAuth from './components/RequireAuth.jsx'
 import Home from './pages/public/Home.jsx'
 import Explore from './pages/public/Explore.jsx'
 import PublicProjectDetail from './pages/public/PublicProjectDetail.jsx'
+import ARViewer from './pages/public/ARViewer.jsx'
 
 // Auth
 import Login from './pages/auth/Login.jsx'
@@ -86,6 +87,9 @@ export default function App() {
         <Route path="app/admin/projets" element={<AdminProjects />} />
         <Route path="app/admin/statistiques" element={<AdminStats />} />
       </Route>
+
+      {/* Public AR viewer — full-screen, no layout, opened via QR scan */}
+      <Route path="ar/model/:id" element={<ARViewer />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
