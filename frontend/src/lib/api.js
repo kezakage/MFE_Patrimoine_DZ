@@ -203,11 +203,12 @@ export const chat = {
 }
 
 export const adminApi = {
-  users: () => api.get('/auth/admin/users/'),
+  users: (filters) => api.get('/auth/admin/users/', filters),
   validateUser: (id, action = 'approve') =>
     api.post(`/auth/admin/users/${id}/validate/`, { action }),
   suspend: (id) => api.post(`/auth/admin/users/${id}/suspend/`),
   disciplines: () => api.get('/auth/disciplines/'),
+  stats: () => api.get('/auth/admin/stats/'),
 }
 
 export function mediaUrl(path) {

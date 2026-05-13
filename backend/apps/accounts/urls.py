@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .social_views import GitHubLoginView, GoogleLoginView, SocialProvidersStatusView
 from .views import (
+    AdminStatsView,
     DisciplineViewSet,
     LoginView,
     MeViewSet,
@@ -26,5 +27,6 @@ urlpatterns = [
     path("social/google/", GoogleLoginView.as_view(), name="social-google"),
     path("social/github/", GitHubLoginView.as_view(), name="social-github"),
 
+    path("admin/stats/", AdminStatsView.as_view(), name="admin-stats"),
     path("", include(router.urls)),
 ]

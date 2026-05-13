@@ -202,7 +202,13 @@
     "viewDetails": "Voir le détail",
     "recentAlerts": "Alertes récentes",
     "approve": "Valider",
-    "reject": "Refuser"
+    "reject": "Refuser",
+    "noPendingExperts": "Aucune demande en attente.",
+    "noAlerts": "Aucune alerte récente.",
+    "statTotalUsers": "Utilisateurs total",
+    "statActiveUsers": "Utilisateurs actifs",
+    "statProjects": "Projets total",
+    "statConflicts": "Conflits ouverts"
   },
   "profile": {
     "title": "Mon profil",

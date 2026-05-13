@@ -202,7 +202,13 @@
     "viewDetails": "عرض التفاصيل",
     "recentAlerts": "التنبيهات الأخيرة",
     "approve": "اعتماد",
-    "reject": "رفض"
+    "reject": "رفض",
+    "noPendingExperts": "لا توجد طلبات معلّقة.",
+    "noAlerts": "لا توجد تنبيهات حديثة.",
+    "statTotalUsers": "إجمالي المستخدمين",
+    "statActiveUsers": "المستخدمون النشطون",
+    "statProjects": "إجمالي المشاريع",
+    "statConflicts": "النزاعات المفتوحة"
   },
   "profile": {
     "title": "حسابي",

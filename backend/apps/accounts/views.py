@@ -4,6 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .models import Discipline, User
@@ -116,3 +117,51 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         user.is_active = False
         user.save(update_fields=["status", "is_active"])
         return Response(UserSerializer(user).data)
+
+
+class AdminStatsView(APIView):
+    """
+    GET /auth/admin/stats/
+    Admin-only aggregated platform statistics:
+      - user counts by status
+      - project / discussion counts
+      - list of pending expert requests (name, institution, disciplines)
+    All computed in 4 DB queries — safe to call on every dashboard mount.
+    """
+    permission_classes = (IsAdmin,)
+
+    def get(self, request):
+        from apps.heritage.models import HeritageResource  # avoid circular import
+        from apps.discussions.models import Discussion
+
+        total_users = User.objects.count()
+        pending_users = User.objects.filter(status=User.Status.PENDING).count()
+        active_users = User.objects.filter(status=User.Status.ACTIVE).count()
+
+        total_projects = HeritageResource.objects.count()
+        open_conflicts = Discussion.objects.filter(status=Discussion.Status.OPEN).count()
+
+        pending_experts = User.objects.filter(
+            status=User.Status.PENDING
+        ).prefetch_related("disciplines").order_by("created_at")[:10]
+
+        experts_data = [
+            {
+                "id": u.id,
+                "full_name": f"{u.first_name} {u.last_name}".strip() or u.email,
+                "email": u.email,
+                "institution": u.institution_name or "",
+                "disciplines": [d.name_fr for d in u.disciplines.all()],
+                "created_at": u.created_at.isoformat(),
+            }
+            for u in pending_experts
+        ]
+
+        return Response({
+            "total_users": total_users,
+            "pending_users": pending_users,
+            "active_users": active_users,
+            "total_projects": total_projects,
+            "open_conflicts": open_conflicts,
+            "pending_experts": experts_data,
+        })

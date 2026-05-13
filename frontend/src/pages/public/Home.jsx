@@ -9,11 +9,14 @@ import ProjectCard from '../../components/ProjectCard.jsx'
 export default function Home() {
   const { t } = useTranslation()
   const [featured, setFeatured] = useState([])
+  const [heroCards, setHeroCards] = useState([])
   useEffect(() => {
-    heritage.resources({ limit: 3 })
+    heritage.resources({ limit: 4 })
       .then((data) => {
         const list = Array.isArray(data) ? data : (data.results || [])
-        setFeatured(list.slice(0, 3).map(resourceToCard))
+        const cards = list.map(resourceToCard)
+        setHeroCards(cards.slice(0, 4))
+        setFeatured(cards.slice(0, 3))
       })
       .catch(() => {})
   }, [])
@@ -47,19 +50,14 @@ export default function Home() {
 
           <div className="relative">
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { c:'#cd5028', t:'Casbah d\'Alger', s:'Patrimoine UNESCO' },
-                { c:'#824c2b', t:'Timgad', s:'Cité romaine' },
-                { c:'#bd7d3d', t:'Ghardaïa', s:'Vallée du M\'Zab' },
-                { c:'#67241a', t:'Tlemcen', s:'Capitale mérinide' },
-              ].map((it,i) => (
-                <div key={i} className="rounded-xl overflow-hidden h-32 md:h-40 relative shadow-soft"
-                     style={{ background: `linear-gradient(135deg, ${it.c}, #3e2417)` }}>
+              {heroCards.map((it) => (
+                <div key={it.id} className="rounded-xl overflow-hidden h-32 md:h-40 relative shadow-soft"
+                     style={{ background: `linear-gradient(135deg, ${it.coverColor}, #3e2417)` }}>
                   <div className="absolute inset-0 opacity-25"
                        style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.5) 0 1px, transparent 1px 12px)' }}/>
                   <div className="absolute bottom-3 start-3 text-white">
-                    <div className="font-display text-lg font-semibold">{it.t}</div>
-                    <div className="text-xs text-sand-200">{it.s}</div>
+                    <div className="font-display text-lg font-semibold">{it.name}</div>
+                    <div className="text-xs text-sand-200">{it.period}{it.region ? ` · ${it.region}` : ''}</div>
                   </div>
                 </div>
               ))}
