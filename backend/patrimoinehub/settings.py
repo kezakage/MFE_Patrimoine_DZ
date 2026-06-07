@@ -262,14 +262,33 @@ ELASTICSEARCH_DSL_AUTO_REFRESH = env_bool("ELASTICSEARCH_DSL_AUTO_REFRESH", True
 # ---------------------------------------------------------------------------
 # Chatbot RAG
 # ---------------------------------------------------------------------------
-ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", "claude-haiku-4-5")
+MISTRAL_API_KEY = env("MISTRAL_API_KEY", "")
+MISTRAL_MODEL = env("MISTRAL_MODEL", "open-mistral-7b")
 EMBEDDING_MODEL_NAME = env(
     "EMBEDDING_MODEL_NAME",
     "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
 )
 CHATBOT_TOP_K = int(env("CHATBOT_TOP_K", "5"))
 CHATBOT_MAX_CONTEXT_CHARS = int(env("CHATBOT_MAX_CONTEXT_CHARS", "6000"))
+
+# ---------------------------------------------------------------------------
+# Conflict consensus engine (apps.discussions.services.consensus)
+# ---------------------------------------------------------------------------
+# Per-role weight applied to a ConflictVote at vote time. A LEAD member of
+# the project owning the discussion gets +CONSENSUS_PROJECT_LEAD_BONUS on top.
+CONSENSUS_ROLE_WEIGHTS = {
+    "admin": 3,
+    "expert": 2,           # validated expert (User.is_validated_expert)
+    "researcher": 1,
+    "visitor": 0,
+    "pending_expert": 0,
+}
+CONSENSUS_PROJECT_LEAD_BONUS = int(env("CONSENSUS_PROJECT_LEAD_BONUS", "1"))
+# Minimum number of *expert/admin* voices on the binding side (approve/reject)
+# required before the engine treats the result as a decision.
+CONSENSUS_QUORUM = int(env("CONSENSUS_QUORUM", "3"))
+# Weighted approval ratio threshold (e.g. 0.66 = two-thirds majority).
+CONSENSUS_APPROVE_RATIO = float(env("CONSENSUS_APPROVE_RATIO", "0.66"))
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(env("JWT_ACCESS_LIFETIME_MIN", "60"))),

@@ -1,7 +1,7 @@
 """
 Endpoint tests for /api/v1/chat/ask/.
 
-These run in stub mode (no Anthropic key configured) — the RAG service falls
+These run in stub mode (no Mistral key configured) — the RAG service falls
 back to listing retrieved chunks. Embedding is monkey-patched to a constant
 vector so tests don't load the 400MB sentence-transformer model in CI.
 """
@@ -39,7 +39,7 @@ def seed_chunk(db):
 
 
 def test_ask_endpoint_creates_session_and_messages(api_client, patch_embedder, seed_chunk, settings):
-    settings.ANTHROPIC_API_KEY = ""  # force stub mode
+    settings.MISTRAL_API_KEY = ""  # force stub mode
     res = api_client.post(
         "/api/v1/chat/ask/",
         {"message": "Parle-moi de la Casbah d'Alger.", "anon_key": "anon123"},
@@ -64,7 +64,7 @@ def test_ask_endpoint_validates_message_length(api_client):
 
 
 def test_ask_endpoint_reuses_existing_session(api_client, patch_embedder, seed_chunk, settings):
-    settings.ANTHROPIC_API_KEY = ""
+    settings.MISTRAL_API_KEY = ""
     first = api_client.post(
         "/api/v1/chat/ask/",
         {"message": "Première question Casbah.", "anon_key": "anonX"},
@@ -84,7 +84,7 @@ def test_ask_endpoint_reuses_existing_session(api_client, patch_embedder, seed_c
 def test_ask_endpoint_authenticated_user_owns_session(
     api_client, auth_client, expert_user, patch_embedder, seed_chunk, settings,
 ):
-    settings.ANTHROPIC_API_KEY = ""
+    settings.MISTRAL_API_KEY = ""
     client = auth_client(expert_user)
     res = client.post(
         "/api/v1/chat/ask/",
@@ -106,7 +106,7 @@ def test_sessions_endpoint_requires_authentication(api_client):
 def test_sessions_endpoint_lists_only_caller_sessions(
     api_client, auth_client, expert_user, researcher_user, patch_embedder, seed_chunk, settings,
 ):
-    settings.ANTHROPIC_API_KEY = ""
+    settings.MISTRAL_API_KEY = ""
     expert_client = auth_client(expert_user)
     researcher_client = auth_client(researcher_user)
     expert_client.post("/api/v1/chat/ask/", {"message": "Question expert."}, format="json")

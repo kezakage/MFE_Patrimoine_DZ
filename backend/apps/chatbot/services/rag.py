@@ -1,9 +1,12 @@
 """
-RAG orchestration: retrieve relevant chunks, build a prompt, call Claude.
+RAG orchestration using LangChain + Mistral.
 
-When `ANTHROPIC_API_KEY` is unset (CI / offline demos), the service falls
-back to a deterministic stub that lists the retrieved sources — useful so
-the UI keeps working without a paid key, and so tests can run hermetically.
+Retrieve relevant chunks from the heritage knowledge base, build a grounded
+prompt with LangChain, and call Mistral for the answer.
+
+When `MISTRAL_API_KEY` is unset (CI / offline demos), the service falls back
+to a deterministic stub that lists the retrieved sources — useful so the UI
+keeps working without an API key, and so tests can run hermetically.
 """
 from __future__ import annotations
 
@@ -57,7 +60,7 @@ def _stub_answer(question: str, chunks: list[KnowledgeChunk]) -> str:
             f"documentaire pour répondre à : « {question} »."
         )
     lines = [
-        "Réponse simulée (clé Anthropic non configurée — la plateforme renvoie "
+        "Réponse simulée (clé Mistral non configurée — la plateforme renvoie "
         "directement les passages les plus pertinents) :",
         "",
     ]
@@ -75,8 +78,8 @@ def ask(question: str) -> RagAnswer:
     max_chars = getattr(settings, "CHATBOT_MAX_CONTEXT_CHARS", 6000)
     chunks = retrieve(question, top_k=top_k)
 
-    api_key = getattr(settings, "ANTHROPIC_API_KEY", "")
-    model = getattr(settings, "ANTHROPIC_MODEL", "claude-haiku-4-5")
+    api_key = getattr(settings, "MISTRAL_API_KEY", "")
+    model = getattr(settings, "MISTRAL_MODEL", "open-mistral-7b")
 
     if not api_key:
         return RagAnswer(
@@ -93,32 +96,33 @@ def ask(question: str) -> RagAnswer:
     )
 
     try:
-        from anthropic import Anthropic
+        from langchain_core.messages import HumanMessage, SystemMessage
+        from langchain_mistralai import ChatMistralAI
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Anthropic SDK import failed: %s", exc)
+        logger.exception("LangChain/Mistral import failed: %s", exc)
         return RagAnswer(text=_stub_answer(question, chunks), sources=chunks, model="stub")
 
-    client = Anthropic(api_key=api_key)
+    llm = ChatMistralAI(
+        api_key=api_key,
+        model=model,
+        max_tokens=800,
+        temperature=0.2,
+    )
     try:
-        resp = client.messages.create(
-            model=model,
-            max_tokens=800,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_msg}],
-        )
+        resp = llm.invoke([
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=user_msg),
+        ])
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Anthropic API call failed: %s", exc)
+        logger.exception("Mistral API call failed: %s", exc)
         return RagAnswer(text=_stub_answer(question, chunks), sources=chunks, model="stub")
 
-    text = ""
-    for block in getattr(resp, "content", []) or []:
-        if getattr(block, "type", None) == "text":
-            text += getattr(block, "text", "")
-    usage = getattr(resp, "usage", None)
+    text = resp.content if isinstance(resp.content, str) else str(resp.content)
+    usage = getattr(resp, "response_metadata", {}).get("token_usage", {}) or {}
     return RagAnswer(
         text=text.strip() or _stub_answer(question, chunks),
         sources=chunks,
-        input_tokens=getattr(usage, "input_tokens", 0) if usage else 0,
-        output_tokens=getattr(usage, "output_tokens", 0) if usage else 0,
+        input_tokens=usage.get("prompt_tokens", 0),
+        output_tokens=usage.get("completion_tokens", 0),
         model=model,
     )

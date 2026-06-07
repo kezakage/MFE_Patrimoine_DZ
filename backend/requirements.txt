@@ -7,6 +7,8 @@ django-cors-headers==4.3.1
 # Auth
 djangorestframework-simplejwt==5.3.1
 django-guardian==2.4.0
+# TOTP two-factor authentication (RFC 6238)
+pyotp==2.9.0
 
 # Social auth (OAuth2 / SSO) — django-allauth handles the provider dance,
 # dj-rest-auth wraps it with REST endpoints that mint our SimpleJWT pair.
@@ -45,10 +47,11 @@ WeasyPrint==62.3
 pydyf==0.10.0
 pikepdf==9.1.1
 
-# Chatbot RAG — pgvector storage + sentence-transformers embeddings + Anthropic
+# Chatbot RAG — pgvector storage + sentence-transformers embeddings + LangChain/Mistral
 pgvector==0.3.6
 sentence-transformers==3.0.1
-anthropic==0.34.2
+langchain==0.2.16
+langchain-mistralai==0.1.13
 
 # Static files in production — WhiteNoise serves /static/ from the WSGI/ASGI
 # process so we don't need a separate nginx in front of Daphne.
