@@ -6,9 +6,15 @@ from .models import HeritageResource, Project, ProjectMember
 
 @admin.register(HeritageResource)
 class HeritageResourceAdmin(GISModelAdmin):
-    list_display = ("name_fr", "wilaya", "period", "architectural_type", "classification_level")
-    list_filter = ("period", "architectural_type", "classification_level", "wilaya")
+    list_display = (
+        "name_fr", "wilaya", "period", "architectural_type",
+        "classification_level", "cover_image_url",
+    )
+    list_filter = (
+        "period", "architectural_type", "classification_level", "wilaya", "disciplines",
+    )
     search_fields = ("name_fr", "name_ar", "wilaya", "commune")
+    filter_horizontal = ("disciplines",)
 
 
 class ProjectMemberInline(admin.TabularInline):

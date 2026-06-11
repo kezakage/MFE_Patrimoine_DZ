@@ -27,11 +27,13 @@ class DiscussionSerializer(serializers.ModelSerializer):
         fields = (
             "id", "project", "page", "related_version",
             "title", "type", "status",
+            "consensus_state", "consensus_auto_resolved",
             "opened_by", "resolved_by",
             "created_at", "updated_at", "resolved_at",
             "message_count",
         )
         read_only_fields = ("opened_by", "resolved_by", "resolved_at",
+                            "consensus_state", "consensus_auto_resolved",
                             "created_at", "updated_at")
 
     def get_message_count(self, obj):
@@ -45,6 +47,7 @@ class ConflictVoteSerializer(serializers.ModelSerializer):
         model = ConflictVote
         fields = (
             "id", "discussion", "proposal", "voter",
-            "choice", "comment", "created_at",
+            "choice", "comment", "weight", "created_at",
         )
-        read_only_fields = ("voter", "created_at")
+        # `weight` is snapshotted server-side; clients never set it directly.
+        read_only_fields = ("voter", "weight", "created_at")

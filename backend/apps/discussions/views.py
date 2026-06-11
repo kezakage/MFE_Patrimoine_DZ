@@ -5,6 +5,7 @@ from rest_framework.response import Response
 
 from .models import ConflictVote, Discussion, Message
 from .serializers import ConflictVoteSerializer, DiscussionSerializer, MessageSerializer
+from .services.consensus import evaluate, vote_weight_for
 
 
 class DiscussionViewSet(viewsets.ModelViewSet):
@@ -58,6 +59,9 @@ class DiscussionViewSet(viewsets.ModelViewSet):
 
         ser = ConflictVoteSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        # Snapshot the voter's authority *at vote time* — role changes later
+        # cannot retroactively reweight a past vote.
+        weight = vote_weight_for(request.user, discussion.project)
         # upsert: one vote per user per discussion
         ConflictVote.objects.update_or_create(
             discussion=discussion,
@@ -66,8 +70,12 @@ class DiscussionViewSet(viewsets.ModelViewSet):
                 "choice": ser.validated_data["choice"],
                 "comment": ser.validated_data.get("comment", ""),
                 "proposal": ser.validated_data.get("proposal"),
+                "weight": weight,
             },
         )
+        # Recompute the weighted consensus and auto-transition to RESOLVED
+        # when the threshold + quorum are met.
+        self._apply_consensus(discussion, actor=request.user)
         return Response(self._tally(discussion))
 
     @action(detail=True, methods=["get"])
@@ -76,11 +84,54 @@ class DiscussionViewSet(viewsets.ModelViewSet):
 
     @staticmethod
     def _tally(discussion):
-        counts = {"approve": 0, "reject": 0, "abstain": 0}
-        for v in discussion.votes.all():
-            counts[v.choice] = counts.get(v.choice, 0) + 1
-        counts["total"] = sum(counts[k] for k in ("approve", "reject", "abstain"))
-        return counts
+        """Build the JSON tally returned by /votes/ and /tally/.
+
+        Combines raw counts (kept for the old UI tiles) with the weighted
+        consensus snapshot so the frontend can render both views in one round-
+        trip.
+        """
+        result = evaluate(discussion)
+        payload = result.asdict()
+        # Legacy keys preserved for backwards compatibility with the existing
+        # Conflicts.jsx tiles (which iterate over `counts`).
+        payload["approve"] = payload["approve_count"]
+        payload["reject"] = payload["reject_count"]
+        payload["abstain"] = payload["abstain_count"]
+        payload["total"] = (
+            payload["approve_count"]
+            + payload["reject_count"]
+            + payload["abstain_count"]
+        )
+        # Surface the persisted discussion state too so the frontend doesn't
+        # have to refetch the discussion just to check the banner.
+        payload["status"] = discussion.status
+        payload["auto_resolved"] = discussion.consensus_auto_resolved
+        return payload
+
+    @staticmethod
+    def _apply_consensus(discussion, actor=None):
+        """Persist the new consensus_state and auto-resolve if recommended.
+
+        The transition to RESOLVED is one-way: the engine never re-opens a
+        discussion that's already resolved (otherwise a late abstention could
+        un-resolve a finalised conflict).
+        """
+        result = evaluate(discussion)
+        fields = []
+        if discussion.consensus_state != result.state:
+            discussion.consensus_state = result.state
+            fields.append("consensus_state")
+        if (
+            result.should_resolve
+            and discussion.status == Discussion.Status.OPEN
+        ):
+            discussion.status = Discussion.Status.RESOLVED
+            discussion.consensus_auto_resolved = True
+            discussion.resolved_at = timezone.now()
+            # No resolved_by: this was machine-driven, not a human click.
+            fields.extend(["status", "consensus_auto_resolved", "resolved_at"])
+        if fields:
+            discussion.save(update_fields=fields + ["updated_at"])
 
 
 class MessageViewSet(viewsets.ModelViewSet):

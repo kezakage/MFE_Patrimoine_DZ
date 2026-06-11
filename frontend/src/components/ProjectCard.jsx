@@ -6,14 +6,33 @@ export default function ProjectCard({ project, to }) {
   const target = to || `/projets-publics/${project.id}`
   return (
     <Link to={target} className="card overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all block group">
-      <div className="h-40 relative" style={{ background: `linear-gradient(135deg, ${project.coverColor}, #3e2417)` }}>
-        <div className="absolute inset-0 opacity-20"
-          style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.4) 0 1px, transparent 1px 12px)' }} />
-        <div className="absolute inset-0 grid place-items-center">
-          <div className="font-display text-white text-3xl font-semibold drop-shadow text-center px-4">
-            {project.name}
-          </div>
-        </div>
+      <div className="h-40 relative" style={!project.coverImage ? { background: `linear-gradient(135deg, ${project.coverColor}, #3e2417)` } : undefined}>
+        {project.coverImage ? (
+          <>
+            <img
+              src={project.coverImage}
+              alt={project.name}
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+            <div className="absolute inset-x-0 bottom-2 px-4">
+              <div className="font-display text-white text-xl font-semibold drop-shadow line-clamp-2">
+                {project.name}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 opacity-20"
+              style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.4) 0 1px, transparent 1px 12px)' }} />
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="font-display text-white text-3xl font-semibold drop-shadow text-center px-4">
+                {project.name}
+              </div>
+            </div>
+          </>
+        )}
         <div className="absolute top-3 left-3"><StatusBadge status={project.status} /></div>
         <span className="chip bg-white/90 text-sand-800 absolute top-3 right-3">{project.type}</span>
       </div>

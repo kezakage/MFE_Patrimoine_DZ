@@ -30,12 +30,14 @@ class MediaViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         media = serializer.save(uploader=self.request.user)
-        # async thumbnail generation + CLIP annotation
+        # async thumbnail generation + CLIP annotation + video transcoding
         try:
-            from .tasks import annotate_image, generate_thumbnail
+            from .tasks import annotate_image, generate_thumbnail, transcode_video
             generate_thumbnail.delay(media.id)
             if media.media_type == Media.Type.IMAGE:
                 annotate_image.delay(media.id)
+            elif media.media_type == Media.Type.VIDEO:
+                transcode_video.delay(media.id)
         except Exception:
             pass
 

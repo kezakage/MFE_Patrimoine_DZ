@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { Mail, Lock, ArrowRight, ShieldCheck, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { auth } from '../../lib/api.js'
@@ -23,11 +23,22 @@ function buildAuthorizeUrl(provider, cfg) {
 }
 
 export default function Login() {
-  const { login, loginAs } = useAuth()
+  const { login, loginAs, error: authError } = useAuth()
   const { t } = useTranslation()
   const [email, setEmail] = useState('amina.belhadj@univ-alger.dz')
   const [password, setPassword] = useState('demo')
   const [providers, setProviders] = useState({ google: { enabled: false }, github: { enabled: false } })
+  const [submitting, setSubmitting] = useState(false)
+  const [localError, setLocalError] = useState(null)
+  // When the account has 2FA enabled, the first submit returns '2fa' and we
+  // switch to a one-time-code step instead of navigating away.
+  const [showPassword, setShowPassword] = useState(false)
+  const [otpStep, setOtpStep] = useState(false)
+  const [otp, setOtp] = useState('')
+  // Set when the backend rejects login because the address is not yet confirmed.
+  // Switches the error block from a plain message to a "renvoyer le lien" CTA.
+  const [needsEmailVerify, setNeedsEmailVerify] = useState(false)
+  const [resendInfo, setResendInfo] = useState('')
   const nav = useNavigate()
   const loc = useLocation()
   const from = loc.state?.from || '/app/tableau-de-bord'
@@ -38,10 +49,55 @@ export default function Login() {
 
   const submit = async (e) => {
     e.preventDefault()
-    await login(email, password)
-    nav(from, { replace: true })
+    setLocalError(null)
+    setNeedsEmailVerify(false)
+    setResendInfo('')
+    setSubmitting(true)
+    try {
+      const res = await login(email, password)
+      if (res === true) nav(from, { replace: true })
+      else if (res === '2fa') setOtpStep(true)
+      else if (res === 'email_not_verified') setNeedsEmailVerify(true)
+      else setLocalError('Identifiants invalides.')
+    } finally {
+      setSubmitting(false)
+    }
   }
-  const quick = (role) => { loginAs(role); nav(from, { replace: true }) }
+
+  const handleResend = async () => {
+    setResendInfo('')
+    try {
+      await auth.resendVerification(email)
+      setResendInfo("Un nouveau lien a été envoyé si le compte existe et n'est pas confirmé.")
+    } catch {
+      setResendInfo("Impossible d'envoyer le lien pour le moment. Réessayez plus tard.")
+    }
+  }
+
+  const submitOtp = async (e) => {
+    e.preventDefault()
+    setLocalError(null)
+    setSubmitting(true)
+    try {
+      const res = await login(email, password, otp.trim())
+      if (res === true) nav(from, { replace: true })
+      else if (res === 'invalid_otp') setLocalError(null) // error surfaced via authError
+      else setLocalError('Vérification impossible.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+  const quick = async (role) => {
+    setLocalError(null)
+    setSubmitting(true)
+    try {
+      const ok = await loginAs(role)
+      if (ok) nav(from, { replace: true })
+      else setLocalError('Connexion démo impossible.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const goSocial = (provider) => {
     const cfg = providers[provider]
@@ -56,6 +112,40 @@ export default function Login() {
       <h1 className="text-2xl font-semibold">{t('auth.loginTitle')}</h1>
       <p className="text-sand-600 text-sm mt-1">{t('auth.loginSubtitle')}</p>
 
+      {otpStep ? (
+        <form onSubmit={submitOtp} className="mt-6 space-y-4">
+          <div className="flex items-center gap-2 text-sand-700 text-sm">
+            <ShieldCheck size={18} className="text-emerald-600"/>
+            Authentification à deux facteurs activée. Saisissez le code à 6 chiffres de votre application.
+          </div>
+          <div>
+            <label className="label">Code de vérification</label>
+            <input
+              autoFocus
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+              className="input tracking-[0.5em] text-center text-lg"
+              placeholder="000000"
+            />
+          </div>
+          {(localError || authError) && (
+            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {localError || authError}
+            </div>
+          )}
+          <button disabled={submitting || otp.length < 6} className="btn-primary w-full">
+            {submitting ? '…' : (<>Vérifier <ArrowRight size={16}/></>)}
+          </button>
+          <button type="button" onClick={() => { setOtpStep(false); setOtp('') }}
+                  className="btn-ghost w-full justify-center text-sm">
+            <ArrowLeft size={16}/>Retour
+          </button>
+        </form>
+      ) : (
+      <>
       {anySocial && (
         <div className="mt-6 space-y-2">
           {providers.google?.enabled && (
@@ -97,14 +187,34 @@ export default function Login() {
           <label className="label">{t('auth.password')}</label>
           <div className="relative">
             <Lock size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-sand-400"/>
-            <input type="password" required value={password} onChange={e=>setPassword(e.target.value)} className="input ps-9"/>
+            <input type={showPassword ? 'text' : 'password'} required value={password} onChange={e=>setPassword(e.target.value)} className="input ps-9 pe-9"/>
+            <button type="button" onClick={() => setShowPassword(v => !v)}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-sand-400 hover:text-sand-600">
+              {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
+            </button>
           </div>
         </div>
         <div className="flex items-center justify-between text-sm">
           <label className="flex items-center gap-2 text-sand-700"><input type="checkbox"/>{t('auth.rememberMe')}</label>
           <Link to="/mot-de-passe-oublie" className="text-terracotta-700 hover:underline">{t('auth.forgotPassword')}</Link>
         </div>
-        <button className="btn-primary w-full">{t('auth.submit')} <ArrowRight size={16}/></button>
+        {needsEmailVerify ? (
+          <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-2">
+            <div>{authError || "Confirmez d'abord votre adresse email."}</div>
+            <button type="button" onClick={handleResend}
+                    className="underline text-amber-900 font-medium">
+              Renvoyer le lien de confirmation
+            </button>
+            {resendInfo && <div className="text-xs text-sand-700">{resendInfo}</div>}
+          </div>
+        ) : (localError || authError) && (
+          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {localError || authError}
+          </div>
+        )}
+        <button disabled={submitting} className="btn-primary w-full">
+          {submitting ? '…' : (<>{t('auth.submit')} <ArrowRight size={16}/></>)}
+        </button>
       </form>
 
       <div className="mt-6 text-center text-sm text-sand-600">
@@ -119,6 +229,8 @@ export default function Login() {
           <button onClick={()=>quick('admin')} className="btn-secondary text-xs">{t('auth.demoAdmin')}</button>
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

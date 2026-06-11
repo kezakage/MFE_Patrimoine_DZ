@@ -9,10 +9,16 @@ from .models import HeritageResource, Project
 class HeritageResourceFilter(filters.FilterSet):
     near = filters.CharFilter(method="filter_near")
     radius_km = filters.NumberFilter(method="filter_noop")
+    # Multi-valued discipline filter (?disciplines=1&disciplines=2 → OR).
+    # Names match the M2M field so django-filter resolves it transparently.
+    disciplines = filters.BaseInFilter(field_name="disciplines__id")
 
     class Meta:
         model = HeritageResource
-        fields = ("period", "architectural_type", "classification_level", "wilaya")
+        fields = (
+            "period", "architectural_type", "classification_level", "wilaya",
+            "disciplines",
+        )
 
     def filter_noop(self, qs, name, value):
         return qs
@@ -37,7 +43,15 @@ class ProjectFilter(filters.FilterSet):
     period = filters.CharFilter(field_name="resource__period")
     architectural_type = filters.CharFilter(field_name="resource__architectural_type")
     wilaya = filters.CharFilter(field_name="resource__wilaya")
+    mine = filters.BooleanFilter(method="filter_mine")
 
     class Meta:
         model = Project
-        fields = ("status", "period", "architectural_type", "wilaya")
+        fields = ("status", "period", "architectural_type", "wilaya", "mine")
+
+    def filter_mine(self, qs, name, value):
+        """When `mine=true`, restrict to projects the current user is a member of."""
+        user = getattr(self.request, "user", None)
+        if not value or user is None or not user.is_authenticated:
+            return qs
+        return qs.filter(memberships__user=user)

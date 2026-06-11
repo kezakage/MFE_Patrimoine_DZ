@@ -74,7 +74,9 @@ export function resourceToCard(r) {
     lat: r.latitude,
     lng: r.longitude,
     coverColor: colorFor(r.id),
+    coverImage: r.cover_image_url || null,
     status: 'valide',
+    project: r.project || null,
   }
 }
 
@@ -91,8 +93,11 @@ export function projectToCard(p) {
     description: p.description || base.description,
     status: p.status || 'in_progress',
     contributors: (p.members_preview || []).map((m) => m.full_name || m.email),
+    coverImage: p.cover_image_url || base.coverImage || null,
     images: p.media_count ?? 0,
     annotations: p.annotation_count ?? 0,
     versions: p.version_count ?? 0,
+    isMember: p.is_member ?? false,
+    memberCount: p.member_count ?? 0,
   }
 }

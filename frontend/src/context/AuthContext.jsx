@@ -27,6 +27,7 @@ function normalize(u) {
     disciplines: u.disciplines || [],
     avatar: userToAvatar(u),
     is_validated_expert: u.is_validated_expert,
+    two_factor_enabled: !!u.two_factor_enabled,
   }
 }
 
@@ -48,18 +49,43 @@ export function AuthProvider({ children }) {
     return () => { cancelled = true }
   }, [])
 
-  const login = async (email, password) => {
+  /**
+   * Returns:
+   *   true                  — logged in
+   *   '2fa'                 — credentials OK but a TOTP code is required (prompt user)
+   *   'invalid_otp'         — credentials OK but the supplied code was wrong
+   *   'email_not_verified'  — credentials OK but the email has not been confirmed
+   *   false                 — bad credentials / other failure
+   */
+  const login = async (email, password, otp) => {
     setError(null)
     try {
-      const data = await auth.login(email, password)
+      const data = await auth.login(email, password, otp)
       tokens.set(data.access, data.refresh)
       const u = data.user || await auth.me()
       setUser(normalize(u))
       return true
     } catch (e) {
+      if (e.data?.two_factor_required) return '2fa'
+      if (e.data?.otp) {
+        setError(Array.isArray(e.data.otp) ? e.data.otp[0] : e.data.otp)
+        return 'invalid_otp'
+      }
+      if (e.data?.code === 'email_not_verified') {
+        setError(e.data?.detail || "Confirmez d'abord votre adresse email.")
+        return 'email_not_verified'
+      }
       setError(e.data?.detail || e.message || 'Échec de connexion')
       return false
     }
+  }
+
+  // Re-fetch the current user (e.g. after toggling 2FA or editing the profile).
+  const refresh = async () => {
+    try {
+      const u = await auth.me()
+      setUser(normalize(u))
+    } catch (_) { /* ignore */ }
   }
 
   const register = async (data) => {
@@ -77,11 +103,9 @@ export function AuthProvider({ children }) {
         discipline_ids: data.discipline_ids || [],
       }
       await auth.register(payload)
-      // Auto-login only if researcher (experts are PENDING and cannot log in until validated)
-      if (payload.requested_role === 'researcher') {
-        const ok = await login(data.email, data.password)
-        return ok
-      }
+      // Email confirmation flow: every new account starts in PENDING_EMAIL, so
+      // no auto-login. The Register page navigates to /verification-email and
+      // the user logs in after clicking the link in their inbox.
       return true
     } catch (e) {
       setError(e.data?.detail || JSON.stringify(e.data || {}) || 'Échec de l\'inscription')
@@ -131,7 +155,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, loginAs, loginWithSocial, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, loginAs, loginWithSocial, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   )

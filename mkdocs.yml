@@ -1,0 +1,60 @@
+site_name: PatrimoineHub — Documentation
+site_description: >-
+  Plateforme nationale collaborative de documentation du patrimoine
+  architectural algérien.
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: fr
+  palette:
+    - scheme: default
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Mode sombre
+    - scheme: slate
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Mode clair
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+
+plugins:
+  - search:
+      lang: [fr, ar]
+  # Bilingue FR (défaut) / AR (RTL). Les pages traduites portent le suffixe
+  # `.ar.md` (ex. index.ar.md) ; les pages sans traduction retombent sur le FR.
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: fr
+          default: true
+          name: Français
+        - locale: ar
+          name: العربية
+          site_name: مركز التراث — التوثيق
+          theme:
+            language: ar
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Accueil: index.md
+  - Architecture: architecture.md
+  - Installation & DevOps: installation.md
+  - Évaluation (KPIs): evaluation.md
+  - Sécurité (OWASP): securite.md

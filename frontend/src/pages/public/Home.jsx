@@ -5,9 +5,11 @@ import { useTranslation } from 'react-i18next'
 import { resourceToCard } from '../../data/projects.js'
 import { heritage } from '../../lib/api.js'
 import ProjectCard from '../../components/ProjectCard.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function Home() {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [featured, setFeatured] = useState([])
   const [heroCards, setHeroCards] = useState([])
   useEffect(() => {
@@ -24,11 +26,11 @@ export default function Home() {
     <div>
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10"
+        <div className="absolute inset-0"
              style={{ background: 'linear-gradient(135deg,#3e2417 0%, #67241a 60%, #a56432 100%)' }}/>
-        <div className="absolute inset-0 -z-10 opacity-15"
+        <div className="absolute inset-0 opacity-15"
              style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.5) 0 1px, transparent 1px 18px)' }}/>
-        <div className="max-w-7xl mx-auto px-4 py-20 md:py-28 grid md:grid-cols-2 gap-10 items-center">
+        <div className="relative max-w-7xl mx-auto px-4 py-20 md:py-28 grid md:grid-cols-2 gap-10 items-center">
           <div className="text-white">
             <span className="chip bg-white/15 text-sand-100 backdrop-blur">{t('home.collaborativeBadge')}</span>
             <h1 className="font-display text-4xl md:text-6xl font-bold mt-4 leading-[1.05]">
@@ -38,7 +40,7 @@ export default function Home() {
               {t('home.heroBody')}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/explorer" className="btn-primary bg-white !text-terracotta-700 hover:!bg-sand-100">
+              <Link to="/explorer" className="btn-primary bg-white dark:!bg-white !text-terracotta-700 hover:!bg-sand-100">
                 <Compass size={18}/>{t('home.exploreCta')}
                 <ArrowRight size={16}/>
               </Link>
@@ -52,11 +54,21 @@ export default function Home() {
             <div className="grid grid-cols-2 gap-3">
               {heroCards.map((it) => (
                 <div key={it.id} className="rounded-xl overflow-hidden h-32 md:h-40 relative shadow-soft"
-                     style={{ background: `linear-gradient(135deg, ${it.coverColor}, #3e2417)` }}>
-                  <div className="absolute inset-0 opacity-25"
-                       style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.5) 0 1px, transparent 1px 12px)' }}/>
+                     style={!it.coverImage ? { background: `linear-gradient(135deg, ${it.coverColor}, #3e2417)` } : undefined}>
+                  {it.coverImage ? (
+                    <img
+                      src={it.coverImage}
+                      alt={it.name}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 opacity-25"
+                         style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.5) 0 1px, transparent 1px 12px)' }}/>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"/>
                   <div className="absolute bottom-3 start-3 text-white">
-                    <div className="font-display text-lg font-semibold">{it.name}</div>
+                    <div className="font-display text-lg font-semibold drop-shadow">{it.name}</div>
                     <div className="text-xs text-sand-200">{it.period}{it.region ? ` · ${it.region}` : ''}</div>
                   </div>
                 </div>
@@ -98,24 +110,26 @@ export default function Home() {
           <Link to="/explorer" className="btn-secondary">{t('home.viewAll')} <ArrowRight size={16}/></Link>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
-          {featured.map(p => <ProjectCard key={p.id} project={p} to={`/explorer/${p.id}`}/>)}
+          {featured.map(p => <ProjectCard key={p.id} project={p} to={`/projets-publics/${p.id}`}/>)}
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="max-w-7xl mx-auto px-4 my-16">
-        <div className="card p-8 md:p-12 text-center bg-gradient-to-br from-sand-100 to-sand-50">
-          <MapPin className="mx-auto text-terracotta-600" size={32}/>
-          <h2 className="section-title mt-3">{t('home.ctaTitle')}</h2>
-          <p className="section-subtitle max-w-2xl mx-auto">
-            {t('home.ctaBody')}
-          </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <Link to="/inscription" className="btn-primary">{t('home.ctaCreateAccount')}</Link>
-            <Link to="/connexion" className="btn-secondary">{t('home.ctaLogin')}</Link>
+      {/* CTA — visible uniquement aux visiteurs non connectés */}
+      {!user && (
+        <section className="max-w-7xl mx-auto px-4 my-16">
+          <div className="card p-8 md:p-12 text-center bg-gradient-to-br from-sand-100 to-sand-50">
+            <MapPin className="mx-auto text-terracotta-600" size={32}/>
+            <h2 className="section-title mt-3">{t('home.ctaTitle')}</h2>
+            <p className="section-subtitle max-w-2xl mx-auto">
+              {t('home.ctaBody')}
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Link to="/inscription" className="btn-primary">{t('home.ctaCreateAccount')}</Link>
+              <Link to="/connexion" className="btn-secondary">{t('home.ctaLogin')}</Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   )
 }

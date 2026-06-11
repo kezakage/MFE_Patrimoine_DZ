@@ -10,6 +10,8 @@ from apps.accounts.permissions import IsExpertOrReadOnly
 from .documents import HeritageResourceDocument
 from .filters import HeritageResourceFilter, ProjectFilter
 from .models import HeritageResource, Project, ProjectMember
+from .services.cidoc_crm import resource_to_cidoc
+from .services.iiif import project_to_manifest
 from .permissions import IsProjectMemberOrReadOnlyPublic
 from .serializers import (
     HeritageResourceSerializer,
@@ -77,18 +79,39 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
         )
         return Response(HeritageResourceSerializer(qs, many=True).data)
 
+    # Facets returned by /search/ — single source of truth so the response
+    # shape stays consistent across modes (keyword / semantic / hybrid).
+    SEARCH_FACETS = (
+        "period",
+        "architectural_type",
+        "classification_level",
+        "wilaya",
+        "disciplines",
+    )
+
     @action(detail=False, methods=["get"], url_path="search", permission_classes=[permissions.AllowAny])
     def es_search(self, request):
         """
-        Elasticsearch-powered search with multilingual matching, filters, facets, highlights.
+        Search heritage resources with multilingual matching, multidimensional
+        facet filters (period / architectural type / wilaya / discipline),
+        highlights, and an optional semantic-rerank pass on the top candidates.
 
         Query params:
           q: full-text query (matched against name_fr, name_ar, description, wilaya.text, commune)
-          period, architectural_type, classification_level, wilaya: exact-match filters
-                  (repeat the param for OR semantics, e.g. ?period=ottoman&period=colonial)
+          period, architectural_type, classification_level, wilaya, disciplines:
+                  multi-valued OR filters (repeat the param to OR more values)
+          mode:   "keyword" (default) — pure Elasticsearch BM25
+                  "hybrid"           — ES retrieves N candidates, pgvector reranks
+                                       them by cosine similarity to a dense
+                                       embedding of `q` and blends scores
+                  "semantic"         — pgvector cosine ranking on the whole
+                                       filtered set (no ES scoring)
           page, size: pagination (default page=1, size=20, max size=100)
         """
         q = request.query_params.get("q", "").strip()
+        mode = (request.query_params.get("mode") or "keyword").lower()
+        if mode not in {"keyword", "hybrid", "semantic"}:
+            mode = "keyword"
         try:
             page = max(int(request.query_params.get("page", 1)), 1)
             size = min(max(int(request.query_params.get("size", 20)), 1), 100)
@@ -97,7 +120,7 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
 
         s = HeritageResourceDocument.search()
 
-        if q:
+        if q and mode != "semantic":
             # cross_fields lets a single query token match across the multilingual fields
             s = s.query(
                 "multi_match",
@@ -112,8 +135,9 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
                 fuzziness="AUTO",
             )
 
-        # OR-style facet filters (multi-valued query params)
-        for facet in ("period", "architectural_type", "classification_level", "wilaya"):
+        # OR-style facet filters (multi-valued query params). Includes the new
+        # `disciplines` facet (contributing scientific disciplines).
+        for facet in self.SEARCH_FACETS:
             values = request.query_params.getlist(facet)
             if values:
                 s = s.filter("terms", **{facet: values})
@@ -123,14 +147,25 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
         s.aggs.bucket("architectural_type", "terms", field="architectural_type", size=30)
         s.aggs.bucket("classification_level", "terms", field="classification_level", size=10)
         s.aggs.bucket("wilaya", "terms", field="wilaya", size=60)
+        s.aggs.bucket("disciplines", "terms", field="disciplines", size=30)
 
         # Highlights — returned only for fields that actually matched
         s = s.highlight_options(pre_tags=["<mark>"], post_tags=["</mark>"], number_of_fragments=2)
         s = s.highlight("name_fr", "name_ar", "description")
 
-        # Pagination
-        start = (page - 1) * size
-        s = s[start:start + size]
+        # In hybrid mode we fetch a wider candidate pool then rerank with the
+        # embedding model; in semantic mode ES is used only for facet filtering.
+        if mode == "hybrid" and q:
+            candidate_size = max(size * 4, 60)
+            s = s[0:candidate_size]
+        elif mode == "semantic" and q:
+            # We don't need ES to score documents — just to apply facet filters
+            # against the index. Cap to avoid huge transfers.
+            candidate_size = 200
+            s = s[0:candidate_size]
+        else:
+            start = (page - 1) * size
+            s = s[start:start + size]
 
         try:
             response = s.execute()
@@ -140,12 +175,14 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        results = []
+        # Build per-id source map so reranking can return them in a new order
+        # without re-hitting ES.
+        hits_by_id = {}
         for hit in response:
             src = hit.to_dict()
-            results.append({
+            hits_by_id[int(hit.meta.id)] = {
                 "id": int(hit.meta.id),
-                "score": hit.meta.score,
+                "es_score": hit.meta.score,
                 "name_fr": src.get("name_fr"),
                 "name_ar": src.get("name_ar"),
                 "description": src.get("description"),
@@ -154,23 +191,87 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
                 "classification_level": src.get("classification_level"),
                 "wilaya": src.get("wilaya"),
                 "commune": src.get("commune"),
+                "disciplines": src.get("disciplines") or [],
                 "location": src.get("location"),
                 "highlight": getattr(hit.meta, "highlight", {}).to_dict()
                 if hasattr(getattr(hit.meta, "highlight", None), "to_dict") else {},
-            })
+            }
 
-        facets = {
-            name: [{"key": b.key, "count": b.doc_count} for b in response.aggregations[name].buckets]
-            for name in ("period", "architectural_type", "classification_level", "wilaya")
-        }
+        # Semantic / hybrid rerank: replace ordering by combined score.
+        rerank_applied = False
+        if q and mode in {"hybrid", "semantic"}:
+            try:
+                # Local import: keeps the embedding model load out of the cold
+                # request path when `mode=keyword` (the default).
+                from .services.semantic import semantic_rerank
+                candidate_ids = list(hits_by_id.keys()) or None
+                ranked = semantic_rerank(q, candidate_ids, top_k=max(size, len(hits_by_id) or 0))
+            except Exception:  # model load failure → fall back gracefully
+                ranked = []
+            if ranked:
+                rerank_applied = True
+                # Cosine distance ∈ [0,2] → similarity ∈ [-1,1]; clip negatives.
+                max_es = max((h["es_score"] or 0.0) for h in hits_by_id.values()) or 1.0
+                ordered = []
+                for rid, dist in ranked:
+                    base = hits_by_id.get(rid)
+                    if not base:
+                        continue
+                    sim = max(0.0, 1.0 - dist)
+                    if mode == "hybrid":
+                        combined = 0.5 * (base["es_score"] / max_es) + 0.5 * sim
+                    else:  # semantic
+                        combined = sim
+                    base = dict(base)
+                    base["semantic_score"] = sim
+                    base["score"] = combined
+                    ordered.append(base)
+                ordered.sort(key=lambda r: r["score"], reverse=True)
+                # Manual pagination over the reranked list.
+                total_after_rerank = len(ordered)
+                start = (page - 1) * size
+                page_items = ordered[start:start + size]
+                # Strip the internal es_score key to keep response stable.
+                results = [{k: v for k, v in r.items() if k != "es_score"} for r in page_items]
+                facets = self._extract_facets(response)
+                return Response({
+                    "total": total_after_rerank,
+                    "page": page,
+                    "size": size,
+                    "mode": mode,
+                    "rerank_applied": True,
+                    "results": results,
+                    "facets": facets,
+                })
+
+        # Keyword path (default) or graceful fallback when rerank failed.
+        results = []
+        for h in hits_by_id.values():
+            r = {k: v for k, v in h.items() if k != "es_score"}
+            r["score"] = h["es_score"]
+            results.append(r)
 
         return Response({
             "total": response.hits.total.value,
             "page": page,
             "size": size,
+            "mode": "keyword" if not rerank_applied else mode,
+            "rerank_applied": rerank_applied,
             "results": results,
-            "facets": facets,
+            "facets": self._extract_facets(response),
         })
+
+    @staticmethod
+    def _extract_facets(response) -> dict:
+        """Pull bucket counts out of an ES response; tolerate missing aggs."""
+        out = {}
+        for name in HeritageResourceViewSet.SEARCH_FACETS:
+            try:
+                buckets = response.aggregations[name].buckets
+            except (KeyError, AttributeError):
+                buckets = []
+            out[name] = [{"key": b.key, "count": b.doc_count} for b in buckets]
+        return out
 
     @action(detail=False, methods=["get"], url_path="suggest", permission_classes=[permissions.AllowAny])
     def suggest(self, request):
@@ -202,6 +303,20 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
                 "score": option._score,
             })
         return Response(out)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="cidoc-crm",
+        permission_classes=[permissions.AllowAny],
+    )
+    def cidoc_crm(self, request, pk=None):
+        """CIDOC-CRM v7.2 JSON-LD representation of this resource."""
+        resource = self.get_object()
+        return Response(
+            resource_to_cidoc(resource),
+            content_type="application/ld+json",
+        )
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -255,6 +370,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
         ProjectMember.objects.filter(project=project, user_id=user_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="join",
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def join(self, request, pk=None):
+        """Any authenticated user may join a PUBLISHED project as a contributor."""
+        # Bypass IsProjectMemberOrReadOnlyPublic by fetching directly.
+        try:
+            project = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response({"detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if project.status != Project.Status.PUBLISHED:
+            return Response(
+                {"detail": "This project is not open to new contributors."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        member, created = ProjectMember.objects.get_or_create(
+            project=project,
+            user=request.user,
+            defaults={"project_role": ProjectMember.ProjectRole.CONTRIBUTOR},
+        )
+        return Response(
+            ProjectMemberSerializer(member).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
     @extend_schema(
         summary="Publish a project to the public space",
         description=(
@@ -281,6 +426,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
         return Response(ProjectSerializer(project).data)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="iiif/manifest",
+        permission_classes=[permissions.AllowAny],
+    )
+    def iiif_manifest(self, request, pk=None):
+        """IIIF Presentation 3.0 manifest of the project's images.
+
+        Visibility follows ``get_queryset``: anonymous users only reach
+        published projects; members reach their own unpublished ones.
+        """
+        project = self.get_object()
+        return Response(
+            project_to_manifest(project, request),
+            content_type="application/ld+json",
+        )
 
 
 def models_or_query(view, user):

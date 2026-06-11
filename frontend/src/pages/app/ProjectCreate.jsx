@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Upload, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { ArrowLeft, Upload, Image as ImageIcon, Loader2, Star } from 'lucide-react'
 import { PERIODS, REGIONS, TYPES } from '../../data/projects.js'
 import { heritage, media as mediaApi, pages as pagesApi } from '../../lib/api.js'
 
@@ -12,6 +12,7 @@ export default function ProjectCreate() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [files, setFiles] = useState([])
+  const [coverIndex, setCoverIndex] = useState(null)
   const [data, setData] = useState({
     name: '',
     name_ar: '',
@@ -50,7 +51,7 @@ export default function ProjectCreate() {
 
       // 2. Project bound to that resource
       const project = await heritage.createProject({
-        resource: resource.id,
+        resource_id: resource.id,
         title: data.name,
         description: data.summary || '',
         status: 'draft',
@@ -66,14 +67,24 @@ export default function ProjectCreate() {
       }
 
       // 4. Optional media uploads
-      for (const f of files) {
+      let coverMediaId = null
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i]
         const fd = new FormData()
         fd.append('file', f)
         fd.append('project', project.id)
         const kind = f.type.startsWith('image/') ? 'image'
                    : f.type.startsWith('video/') ? 'video' : 'document'
         fd.append('media_type', kind)
-        try { await mediaApi.upload(fd) } catch (_) { /* tolerate single failure */ }
+        try {
+          const uploaded = await mediaApi.upload(fd)
+          if (i === coverIndex && uploaded?.id) coverMediaId = uploaded.id
+        } catch (_) { /* tolerate single failure */ }
+      }
+
+      // 5. Mark the chosen image as the project's main photo
+      if (coverMediaId) {
+        try { await heritage.updateProject(project.id, { cover_media_id: coverMediaId }) } catch (_) {}
       }
 
       nav(`/app/projets/${project.id}`)
@@ -165,18 +176,42 @@ export default function ProjectCreate() {
               <Upload className="mx-auto text-sand-500" size={32}/>
               <p className="mt-3 text-sand-700">Glissez-déposez vos fichiers ou</p>
               <input id="filepick" type="file" multiple className="hidden"
-                     onChange={(e) => setFiles(Array.from(e.target.files || []))}/>
+                     onChange={(e) => {
+                       const picked = Array.from(e.target.files || [])
+                       setFiles(picked)
+                       const firstImage = picked.findIndex(f => f.type.startsWith('image/'))
+                       setCoverIndex(firstImage >= 0 ? firstImage : null)
+                     }}/>
               <label htmlFor="filepick" className="btn-primary mt-3 inline-flex"><ImageIcon size={16}/>Parcourir</label>
               <p className="text-xs text-sand-500 mt-3">JPG, PNG, PDF — max 50 Mo / fichier</p>
             </div>
+            {files.some(f => f.type.startsWith('image/')) && (
+              <p className="text-xs text-sand-500 mt-3">Choisissez la photo principale qui représentera le projet dans les listes et l'explorateur.</p>
+            )}
             {files.length > 0 && (
               <ul className="mt-4 text-sm space-y-1">
-                {files.map((f, i) => (
-                  <li key={i} className="flex justify-between border-b py-1">
-                    <span>{f.name}</span>
-                    <span className="text-sand-500">{(f.size/1024).toFixed(0)} Ko</span>
-                  </li>
-                ))}
+                {files.map((f, i) => {
+                  const isImage = f.type.startsWith('image/')
+                  return (
+                    <li key={i} className="flex items-center justify-between gap-3 border-b py-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {coverIndex === i && (
+                          <span className="chip bg-terracotta-100 text-terracotta-700 shrink-0">Photo principale</span>
+                        )}
+                        <span className="truncate">{f.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        {isImage && coverIndex !== i && (
+                          <button type="button" onClick={() => setCoverIndex(i)}
+                                  className="text-xs text-terracotta-700 hover:underline inline-flex items-center gap-1">
+                            <Star size={12}/>Définir comme principale
+                          </button>
+                        )}
+                        <span className="text-sand-500">{(f.size/1024).toFixed(0)} Ko</span>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>

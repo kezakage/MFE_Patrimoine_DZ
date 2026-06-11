@@ -13,7 +13,7 @@ import RichEditor from '../../components/RichEditor.jsx'
 import VersionDiff from '../../components/VersionDiff.jsx'
 import DisciplineLegend from '../../components/DisciplineLegend.jsx'
 import MediaAnnotator from '../../components/MediaAnnotator.jsx'
-import { heritage, pages as pagesApi, media as mediaApi, discussions as discApi, mediaUrl } from '../../lib/api.js'
+import { heritage, pages as pagesApi, media as mediaApi, discussions as discApi, adminApi, mediaUrl } from '../../lib/api.js'
 import { projectToCard } from '../../data/projects.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
@@ -155,6 +155,9 @@ function Editor({ projectId }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [drafts, setDrafts] = useState({})
+  // Discipline catalog — feeds the editor's inline color-tagging palette so a
+  // contributor can mark their text with their discipline's color.
+  const [disciplines, setDisciplines] = useState([])
   // Each entry tracks the version the user *based their edits on*. If the
   // server's current_version has moved past it, another contributor saved in
   // between — that's the conflict we surface before letting the save go through.
@@ -189,6 +192,18 @@ function Editor({ projectId }) {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [projectId])
+
+  useEffect(() => {
+    let cancelled = false
+    adminApi.disciplines()
+      .then((data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : (data.results || [])
+        setDisciplines(list)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   /**
    * Save flow with optimistic concurrency check.
@@ -314,6 +329,7 @@ function Editor({ projectId }) {
                 onChange={(html) => setDrafts({ ...drafts, [p.id]: html })}
                 placeholder={t('projects.editor.placeholder')}
                 borderColor={color}
+                disciplines={disciplines}
               />
             </article>
           )

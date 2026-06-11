@@ -9,7 +9,7 @@ export default function AdminStats() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    Promise.all([adminApi.users(), heritage.projects()])
+    Promise.all([adminApi.users({ page_size: 1000 }), heritage.projects({ page_size: 1000 })])
       .then(([u, p]) => {
         setUsers(Array.isArray(u) ? u : (u.results || []))
         setProjects(Array.isArray(p) ? p : (p.results || []))
@@ -22,7 +22,7 @@ export default function AdminStats() {
     projects: projects.length,
     users: users.length,
     experts: users.filter(u => u.role === 'expert').length,
-    pending: users.filter(u => (u.role === 'expert' && !u.is_validated) || u.account_status === 'pending').length,
+    pending: users.filter(u => u.status === 'pending').length,
     published: projects.filter(p => p.status === 'published').length,
   }), [users, projects])
 

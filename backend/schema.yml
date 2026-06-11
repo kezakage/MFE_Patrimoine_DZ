@@ -1,0 +1,5122 @@
+openapi: 3.0.3
+info:
+  title: PatrimoineHub API
+  version: 0.1.0
+  description: Collaborative platform for Algerian architectural heritage
+paths:
+  /api/v1/auth/admin/users/:
+    get:
+      operationId: v1_auth_admin_users_list
+      description: |-
+        Admin-only management of users. Includes the `validate` action which
+        handles the workflow:
+            - approve  → status=ACTIVE, sets validated_by/at
+            - reject   → status=REJECTED
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - admin
+          - expert
+          - researcher
+          - visitor
+        description: |-
+          * `admin` - Administrateur
+          * `expert` - Expert validé
+          * `researcher` - Chercheur invité
+          * `visitor` - Visiteur
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - pending
+          - rejected
+        description: |-
+          * `pending` - En attente de validation
+          * `active` - Actif
+          * `rejected` - Rejeté
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: v1_auth_admin_users_create
+      description: |-
+        Admin-only management of users. Includes the `validate` action which
+        handles the workflow:
+            - approve  → status=ACTIVE, sets validated_by/at
+            - reject   → status=REJECTED
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/auth/admin/users/{id}/:
+    get:
+      operationId: v1_auth_admin_users_retrieve
+      description: |-
+        Admin-only management of users. Includes the `validate` action which
+        handles the workflow:
+            - approve  → status=ACTIVE, sets validated_by/at
+            - reject   → status=REJECTED
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: v1_auth_admin_users_update
+      description: |-
+        Admin-only management of users. Includes the `validate` action which
+        handles the workflow:
+            - approve  → status=ACTIVE, sets validated_by/at
+            - reject   → status=REJECTED
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: v1_auth_admin_users_partial_update
+      description: |-
+        Admin-only management of users. Includes the `validate` action which
+        handles the workflow:
+            - approve  → status=ACTIVE, sets validated_by/at
+            - reject   → status=REJECTED
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: v1_auth_admin_users_destroy
+      description: |-
+        Admin-only management of users. Includes the `validate` action which
+        handles the workflow:
+            - approve  → status=ACTIVE, sets validated_by/at
+            - reject   → status=REJECTED
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/admin/users/{id}/suspend/:
+    post:
+      operationId: v1_auth_admin_users_suspend_create
+      description: |-
+        Admin-only management of users. Includes the `validate` action which
+        handles the workflow:
+            - approve  → status=ACTIVE, sets validated_by/at
+            - reject   → status=REJECTED
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/auth/admin/users/{id}/validate/:
+    post:
+      operationId: v1_auth_admin_users_validate_create
+      description: Admin-only. Transitions a user's `status` to either `ACTIVE` (on
+        approve) or `REJECTED` (on reject). On success, a real-time WebSocket notification
+        is pushed to the user via `/ws/notifications/` so the frontend can display
+        a toast.
+      summary: Approve or reject an expert account request
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateExpertRequest'
+            examples:
+              Approve:
+                value:
+                  decision: approve
+              Reject:
+                value:
+                  decision: reject
+                  note: Profil incomplet
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ValidateExpertRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ValidateExpertRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                Approve:
+                  value:
+                    decision: approve
+                Reject:
+                  value:
+                    decision: reject
+                    note: Profil incomplet
+          description: ''
+  /api/v1/auth/disciplines/:
+    get:
+      operationId: v1_auth_disciplines_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDisciplineList'
+          description: ''
+  /api/v1/auth/disciplines/{id}/:
+    get:
+      operationId: v1_auth_disciplines_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discipline.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discipline'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: v1_auth_login_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: v1_auth_me_list
+      description: GET/PATCH /auth/me/ — current user profile.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+  /api/v1/auth/me/{id}/:
+    patch:
+      operationId: v1_auth_me_partial_update
+      description: GET/PATCH /auth/me/ — current user profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: v1_auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: v1_auth_register_create
+      description: POST /auth/register/ — public sign-up.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+          description: ''
+  /api/v1/auth/social/github/:
+    post:
+      operationId: v1_auth_social_github_create
+      description: |-
+        Wraps SocialLoginView with a soft-fail when the provider has no credentials.
+        This keeps the API up in dev environments where SSO isn't configured yet.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SocialLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SocialLoginRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialLogin'
+          description: ''
+  /api/v1/auth/social/google/:
+    post:
+      operationId: v1_auth_social_google_create
+      description: |-
+        Wraps SocialLoginView with a soft-fail when the provider has no credentials.
+        This keeps the API up in dev environments where SSO isn't configured yet.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SocialLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SocialLoginRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialLogin'
+          description: ''
+  /api/v1/auth/social/providers/:
+    get:
+      operationId: v1_auth_social_providers_retrieve
+      description: |-
+        GET /api/v1/auth/social/providers/ — tells the frontend which provider
+        buttons to show (only those that actually have credentials).
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/chat/ask/:
+    post:
+      operationId: v1_chat_ask_create
+      description: 'Runs a retrieval-augmented generation (RAG) cycle: retrieves relevant
+        chunks from the heritage knowledge base, asks Claude for a grounded answer,
+        and persists both turns in the chat session. Anonymous callers may pass `anon_key`
+        (an opaque token stored in browser localStorage) so their history is groupable
+        without an account. Rate-limited per user/IP.'
+      summary: Ask the heritage chatbot a question
+      tags:
+      - chatbot
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+            examples:
+              AskAboutCasbah:
+                value:
+                  message: Quelle est l'histoire de la Casbah d'Alger ?
+                summary: Ask about Casbah
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AskResponse'
+              examples:
+                AskAboutCasbah:
+                  value:
+                    message: Quelle est l'histoire de la Casbah d'Alger ?
+                  summary: Ask about Casbah
+          description: ''
+  /api/v1/chat/sessions/:
+    get:
+      operationId: v1_chat_sessions_list
+      description: List / retrieve / delete the authenticated user's chat sessions.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedChatSessionList'
+          description: ''
+  /api/v1/chat/sessions/{id}/:
+    get:
+      operationId: v1_chat_sessions_retrieve
+      description: List / retrieve / delete the authenticated user's chat sessions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+          description: ''
+    delete:
+      operationId: v1_chat_sessions_destroy
+      description: List / retrieve / delete the authenticated user's chat sessions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/discussions/:
+    get:
+      operationId: v1_discussions_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - archived
+          - open
+          - resolved
+        description: |-
+          * `open` - Ouvert
+          * `resolved` - Résolu
+          * `archived` - Archivé
+      - in: query
+        name: type
+        schema:
+          type: string
+          enum:
+          - conflict
+          - general
+          - review
+        description: |-
+          * `general` - Général
+          * `conflict` - Conflit éditorial
+          * `review` - Révision
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDiscussionList'
+          description: ''
+    post:
+      operationId: v1_discussions_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+  /api/v1/discussions/{id}/:
+    get:
+      operationId: v1_discussions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+    put:
+      operationId: v1_discussions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+    patch:
+      operationId: v1_discussions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDiscussionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDiscussionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDiscussionRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+    delete:
+      operationId: v1_discussions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/discussions/{id}/messages/:
+    get:
+      operationId: v1_discussions_messages_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+    post:
+      operationId: v1_discussions_messages_create_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+  /api/v1/discussions/{id}/resolve/:
+    post:
+      operationId: v1_discussions_resolve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+  /api/v1/discussions/{id}/tally/:
+    get:
+      operationId: v1_discussions_tally_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+  /api/v1/discussions/{id}/votes/:
+    get:
+      operationId: v1_discussions_votes_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+    post:
+      operationId: v1_discussions_votes_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this discussion.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DiscussionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+          description: ''
+  /api/v1/discussions/messages/:
+    get:
+      operationId: v1_discussions_messages_list
+      parameters:
+      - in: query
+        name: author
+        schema:
+          type: integer
+      - in: query
+        name: discussion
+        schema:
+          type: integer
+      - in: query
+        name: is_proposal
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMessageList'
+          description: ''
+    post:
+      operationId: v1_discussions_messages_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/discussions/messages/{id}/:
+    get:
+      operationId: v1_discussions_messages_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    put:
+      operationId: v1_discussions_messages_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    patch:
+      operationId: v1_discussions_messages_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMessageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMessageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMessageRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    delete:
+      operationId: v1_discussions_messages_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/exports/:
+    get:
+      operationId: v1_exports_list
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - csv
+          - geojson
+          - pdf
+          - zip
+        description: |-
+          * `pdf` - PDF
+          * `zip` - Archive ZIP
+          * `geojson` - GeoJSON
+          * `csv` - CSV
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - done
+          - failed
+          - pending
+          - processing
+        description: |-
+          * `pending` - En attente
+          * `processing` - En cours de traitement
+          * `done` - Terminé
+          * `failed` - Échec
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedExportJobList'
+          description: ''
+    post:
+      operationId: v1_exports_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportJobRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExportJobRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+          description: ''
+  /api/v1/exports/{id}/:
+    get:
+      operationId: v1_exports_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this export job.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+          description: ''
+    put:
+      operationId: v1_exports_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this export job.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportJobRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExportJobRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+          description: ''
+    patch:
+      operationId: v1_exports_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this export job.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedExportJobRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedExportJobRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedExportJobRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+          description: ''
+    delete:
+      operationId: v1_exports_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this export job.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/heritage/projects/:
+    get:
+      operationId: v1_heritage_projects_list
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: query
+        name: architectural_type
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: period
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - archived
+          - draft
+          - in_progress
+          - published
+        description: |-
+          * `draft` - Brouillon
+          * `in_progress` - En cours
+          * `published` - Publié
+          * `archived` - Archivé
+      - in: query
+        name: wilaya
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjectList'
+          description: ''
+    post:
+      operationId: v1_heritage_projects_create
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /api/v1/heritage/projects/{id}/:
+    get:
+      operationId: v1_heritage_projects_retrieve
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    put:
+      operationId: v1_heritage_projects_update
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    patch:
+      operationId: v1_heritage_projects_partial_update
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    delete:
+      operationId: v1_heritage_projects_destroy
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/heritage/projects/{id}/members/:
+    get:
+      operationId: v1_heritage_projects_members_retrieve
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    post:
+      operationId: v1_heritage_projects_members_create
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /api/v1/heritage/projects/{id}/members/{user_id}/:
+    delete:
+      operationId: v1_heritage_projects_members_destroy
+      description: |-
+        Collaborative projects.
+        - List: published projects (public) + projects the user is member of.
+        - Create: any authenticated expert/admin.
+        - Update/Delete: project members or admins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/heritage/projects/{id}/publish/:
+    post:
+      operationId: v1_heritage_projects_publish_create
+      description: 'Transitions the project''s `status` to `PUBLISHED`, making it
+        visible on the public map and explore pages. Idempotent: re-publishing an
+        already published project is a no-op and does not re-notify members. On the
+        first transition, every project member receives a real-time WebSocket notification.'
+      summary: Publish a project to the public space
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this project.
+        required: true
+      tags:
+      - projects
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /api/v1/heritage/resources/:
+    get:
+      operationId: v1_heritage_resources_list
+      description: Catalog of architectural heritage resources (monuments).
+      parameters:
+      - in: query
+        name: architectural_type
+        schema:
+          type: string
+          enum:
+          - archaeological_site
+          - casbah
+          - church
+          - fortification
+          - mausoleum
+          - medersa
+          - mosque
+          - other
+          - palace
+          - synagogue
+          - traditional_house
+        description: |-
+          * `mosque` - Mosquée
+          * `medersa` - Médersa
+          * `casbah` - Casbah / Médina
+          * `palace` - Palais
+          * `fortification` - Fortification
+          * `church` - Église
+          * `synagogue` - Synagogue
+          * `mausoleum` - Mausolée
+          * `traditional_house` - Maison traditionnelle
+          * `archaeological_site` - Site archéologique
+          * `other` - Autre
+      - in: query
+        name: classification_level
+        schema:
+          type: string
+          enum:
+          - national
+          - regional
+          - unclassified
+          - unesco
+        description: |-
+          * `unesco` - Patrimoine mondial UNESCO
+          * `national` - National
+          * `regional` - Régional
+          * `unclassified` - Non classé
+      - in: query
+        name: near
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: period
+        schema:
+          type: string
+          enum:
+          - colonial
+          - contemporary
+          - medieval
+          - numidian
+          - ottoman
+          - prehistoric
+          - roman
+        description: |-
+          * `prehistoric` - Préhistorique
+          * `numidian` - Numide
+          * `roman` - Romain
+          * `medieval` - Médiéval
+          * `ottoman` - Ottoman
+          * `colonial` - Colonial
+          * `contemporary` - Contemporain
+      - in: query
+        name: radius_km
+        schema:
+          type: number
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: wilaya
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedHeritageResourceList'
+          description: ''
+    post:
+      operationId: v1_heritage_resources_create
+      description: Catalog of architectural heritage resources (monuments).
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeritageResourceWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HeritageResourceWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HeritageResourceWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResourceWrite'
+          description: ''
+  /api/v1/heritage/resources/{id}/:
+    get:
+      operationId: v1_heritage_resources_retrieve
+      description: Catalog of architectural heritage resources (monuments).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this heritage resource.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResource'
+          description: ''
+    put:
+      operationId: v1_heritage_resources_update
+      description: Catalog of architectural heritage resources (monuments).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this heritage resource.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeritageResourceWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HeritageResourceWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HeritageResourceWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResourceWrite'
+          description: ''
+    patch:
+      operationId: v1_heritage_resources_partial_update
+      description: Catalog of architectural heritage resources (monuments).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this heritage resource.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedHeritageResourceWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedHeritageResourceWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedHeritageResourceWriteRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResourceWrite'
+          description: ''
+    delete:
+      operationId: v1_heritage_resources_destroy
+      description: Catalog of architectural heritage resources (monuments).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this heritage resource.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/heritage/resources/full-text/:
+    get:
+      operationId: v1_heritage_resources_full_text_retrieve
+      description: PostgreSQL full-text search across name + description (legacy fallback).
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResource'
+          description: ''
+  /api/v1/heritage/resources/geojson/:
+    get:
+      operationId: v1_heritage_resources_geojson_retrieve
+      description: |-
+        FeatureCollection of all heritage resources with a geo_point.
+        Lightweight payload tailored for Leaflet markers.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResource'
+          description: ''
+  /api/v1/heritage/resources/search/:
+    get:
+      operationId: v1_heritage_resources_search_retrieve
+      description: |-
+        Elasticsearch-powered search with multilingual matching, filters, facets, highlights.
+
+        Query params:
+          q: full-text query (matched against name_fr, name_ar, description, wilaya.text, commune)
+          period, architectural_type, classification_level, wilaya: exact-match filters
+                  (repeat the param for OR semantics, e.g. ?period=ottoman&period=colonial)
+          page, size: pagination (default page=1, size=20, max size=100)
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResource'
+          description: ''
+  /api/v1/heritage/resources/suggest/:
+    get:
+      operationId: v1_heritage_resources_suggest_retrieve
+      description: Autocomplete on resource names (uses ES completion suggester on
+        name_fr.suggest).
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeritageResource'
+          description: ''
+  /api/v1/media/:
+    get:
+      operationId: v1_media_list
+      parameters:
+      - in: query
+        name: media_type
+        schema:
+          type: string
+          enum:
+          - document
+          - image
+          - model_3d
+          - video
+        description: |-
+          * `image` - Image
+          * `video` - Vidéo
+          * `document` - Document
+          * `model_3d` - Modèle 3D
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: uploader
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMediaList'
+          description: ''
+    post:
+      operationId: v1_media_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MediaUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MediaUploadRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUpload'
+          description: ''
+  /api/v1/media/{id}/:
+    get:
+      operationId: v1_media_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this media.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+          description: ''
+    put:
+      operationId: v1_media_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this media.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MediaUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MediaUploadRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUpload'
+          description: ''
+    patch:
+      operationId: v1_media_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this media.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMediaUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMediaUploadRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMediaUploadRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUpload'
+          description: ''
+    delete:
+      operationId: v1_media_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this media.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/media/{id}/annotations/:
+    get:
+      operationId: v1_media_annotations_list_2
+      description: Returns all annotations (manual and AI-generated) for the given
+        media, including author, discipline, geometry (bounding box), and validation
+        status. AI-generated annotations from CLIP zero-shot classification are flagged
+        with `is_ai_generated=true` and may be unvalidated by experts.
+      summary: List annotations attached to a media
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this media.
+        required: true
+      - in: query
+        name: media_type
+        schema:
+          type: string
+          enum:
+          - document
+          - image
+          - model_3d
+          - video
+        description: |-
+          * `image` - Image
+          * `video` - Vidéo
+          * `document` - Document
+          * `model_3d` - Modèle 3D
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: uploader
+        schema:
+          type: integer
+      tags:
+      - media
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAnnotationList'
+          description: ''
+  /api/v1/media/annotations/:
+    get:
+      operationId: v1_media_annotations_list
+      parameters:
+      - in: query
+        name: discipline
+        schema:
+          type: integer
+      - in: query
+        name: is_ai_generated
+        schema:
+          type: boolean
+      - in: query
+        name: is_validated
+        schema:
+          type: boolean
+      - in: query
+        name: media
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: resource
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAnnotationList'
+          description: ''
+    post:
+      operationId: v1_media_annotations_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnotationWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AnnotationWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnnotationWriteRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationWrite'
+          description: ''
+  /api/v1/media/annotations/{id}/:
+    get:
+      operationId: v1_media_annotations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this annotation.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Annotation'
+          description: ''
+    put:
+      operationId: v1_media_annotations_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this annotation.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnotationWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AnnotationWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnnotationWriteRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationWrite'
+          description: ''
+    patch:
+      operationId: v1_media_annotations_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this annotation.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAnnotationWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAnnotationWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAnnotationWriteRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationWrite'
+          description: ''
+    delete:
+      operationId: v1_media_annotations_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this annotation.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/media/annotations/{id}/reject/:
+    post:
+      operationId: v1_media_annotations_reject_create
+      description: Deletes an AI-generated annotation that an expert deemed incorrect.
+        Returns HTTP 400 if the annotation is not AI-generated — manual annotations
+        must be deleted through the standard DELETE endpoint instead.
+      summary: Reject an AI-generated annotation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this annotation.
+        required: true
+      tags:
+      - media
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+        '400':
+          description: No response body
+  /api/v1/media/annotations/{id}/validate_annotation/:
+    post:
+      operationId: v1_media_annotations_validate_annotation_create
+      description: Marks an annotation as expert-validated, recording the validating
+        user. Typically applied to AI-generated annotations (CLIP) once an expert
+        has reviewed the suggested label and bounding box.
+      summary: Validate an AI-generated annotation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this annotation.
+        required: true
+      tags:
+      - media
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Annotation'
+          description: ''
+  /api/v1/notifications/:
+    get:
+      operationId: v1_notifications_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/v1/notifications/{id}/:
+    get:
+      operationId: v1_notifications_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/notifications/{id}/mark_read/:
+    post:
+      operationId: v1_notifications_mark_read_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/notifications/mark_all_read/:
+    post:
+      operationId: v1_notifications_mark_all_read_create
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/notifications/unread_count/:
+    get:
+      operationId: v1_notifications_unread_count_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/pages/:
+    get:
+      operationId: v1_pages_list
+      description: Pages of a project (e.g. History, Architecture, Bibliography).
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPageList'
+          description: ''
+    post:
+      operationId: v1_pages_create
+      description: Pages of a project (e.g. History, Architecture, Bibliography).
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PageRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+          description: ''
+  /api/v1/pages/{id}/:
+    get:
+      operationId: v1_pages_retrieve
+      description: Pages of a project (e.g. History, Architecture, Bibliography).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+          description: ''
+    put:
+      operationId: v1_pages_update
+      description: Pages of a project (e.g. History, Architecture, Bibliography).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PageRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+          description: ''
+    patch:
+      operationId: v1_pages_partial_update
+      description: Pages of a project (e.g. History, Architecture, Bibliography).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPageRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+          description: ''
+    delete:
+      operationId: v1_pages_destroy
+      description: Pages of a project (e.g. History, Architecture, Bibliography).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/pages/versions/:
+    get:
+      operationId: v1_pages_versions_list
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      parameters:
+      - in: query
+        name: author
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - draft
+          - published
+        description: |-
+          * `draft` - Brouillon
+          * `published` - Publié
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPageVersionList'
+          description: ''
+    post:
+      operationId: v1_pages_versions_create
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVersion'
+          description: ''
+  /api/v1/pages/versions/{id}/:
+    get:
+      operationId: v1_pages_versions_retrieve
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page version.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVersion'
+          description: ''
+    put:
+      operationId: v1_pages_versions_update
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page version.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVersion'
+          description: ''
+    patch:
+      operationId: v1_pages_versions_partial_update
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page version.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPageVersionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPageVersionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPageVersionRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVersion'
+          description: ''
+    delete:
+      operationId: v1_pages_versions_destroy
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page version.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/pages/versions/{id}/restore/:
+    post:
+      operationId: v1_pages_versions_restore_create
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this page version.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PageVersionRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVersion'
+          description: ''
+  /api/v1/pages/versions/diff/:
+    get:
+      operationId: v1_pages_versions_diff_retrieve
+      description: |-
+        Return a shallow diff between two versions:
+            GET /pages/versions/diff/?a=<id>&b=<id>
+        Uses python's difflib on the JSON-serialized content.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVersion'
+          description: ''
+  /api/v1/pages/versions/history/{page_id}/:
+    get:
+      operationId: v1_pages_versions_history_retrieve
+      description: |-
+        Versions are append-only: creating a new one auto-increments
+        `version_number`, sets `parent_version` to the current head, and bumps
+        the page's pointer.
+
+        Restoration: POST /pages/versions/{id}/restore/ creates a new version
+        that copies the chosen one's content (Git-style "revert").
+      parameters:
+      - in: path
+        name: page_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVersion'
+          description: ''
+components:
+  schemas:
+    AiStatusEnum:
+      enum:
+      - pending
+      - done
+      - failed
+      - skipped
+      type: string
+      description: |-
+        * `pending` - En attente
+        * `done` - Terminé
+        * `failed` - Échec
+        * `skipped` - Ignoré
+    Annotation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        media:
+          type: integer
+          nullable: true
+        resource:
+          type: integer
+          nullable: true
+        geometry_json: {}
+        longitude:
+          type: string
+          readOnly: true
+        latitude:
+          type: string
+          readOnly: true
+        body_text:
+          type: string
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        discipline:
+          type: integer
+          nullable: true
+        is_ai_generated:
+          type: boolean
+        is_validated:
+          type: boolean
+        validated_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author
+      - created_at
+      - id
+      - latitude
+      - longitude
+      - validated_by
+    AnnotationWrite:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        media:
+          type: integer
+          nullable: true
+        resource:
+          type: integer
+          nullable: true
+        geometry_json: {}
+        body_text:
+          type: string
+        discipline:
+          type: integer
+          nullable: true
+        is_ai_generated:
+          type: boolean
+      required:
+      - id
+    AnnotationWriteRequest:
+      type: object
+      properties:
+        media:
+          type: integer
+          nullable: true
+        resource:
+          type: integer
+          nullable: true
+        geometry_json: {}
+        longitude:
+          type: number
+          format: double
+          writeOnly: true
+        latitude:
+          type: number
+          format: double
+          writeOnly: true
+        body_text:
+          type: string
+        discipline:
+          type: integer
+          nullable: true
+        is_ai_generated:
+          type: boolean
+    ArchitecturalTypeEnum:
+      enum:
+      - mosque
+      - medersa
+      - casbah
+      - palace
+      - fortification
+      - church
+      - synagogue
+      - mausoleum
+      - traditional_house
+      - archaeological_site
+      - other
+      type: string
+      description: |-
+        * `mosque` - Mosquée
+        * `medersa` - Médersa
+        * `casbah` - Casbah / Médina
+        * `palace` - Palais
+        * `fortification` - Fortification
+        * `church` - Église
+        * `synagogue` - Synagogue
+        * `mausoleum` - Mausolée
+        * `traditional_house` - Maison traditionnelle
+        * `archaeological_site` - Site archéologique
+        * `other` - Autre
+    AskRequest:
+      type: object
+      description: Input payload for POST /chat/ask/.
+      properties:
+        message:
+          type: string
+          minLength: 2
+          maxLength: 2000
+        session_id:
+          type: integer
+          nullable: true
+        anon_key:
+          type: string
+          maxLength: 64
+      required:
+      - message
+    AskResponse:
+      type: object
+      properties:
+        session_id:
+          type: integer
+        user_message:
+          $ref: '#/components/schemas/ChatMessage'
+        assistant_message:
+          $ref: '#/components/schemas/ChatMessage'
+        model:
+          type: string
+      required:
+      - assistant_message
+      - model
+      - session_id
+      - user_message
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/ChatMessageRoleEnum'
+        content:
+          type: string
+        citations:
+          type: string
+          readOnly: true
+        input_tokens:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        output_tokens:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - citations
+      - content
+      - created_at
+      - id
+      - role
+    ChatMessageRoleEnum:
+      enum:
+      - user
+      - assistant
+      - system
+      type: string
+      description: |-
+        * `user` - Utilisateur
+        * `assistant` - Assistant
+        * `system` - Système
+    ChatSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - messages
+      - updated_at
+    ClassificationLevelEnum:
+      enum:
+      - unesco
+      - national
+      - regional
+      - unclassified
+      type: string
+      description: |-
+        * `unesco` - Patrimoine mondial UNESCO
+        * `national` - National
+        * `regional` - Régional
+        * `unclassified` - Non classé
+    DecisionEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
+    Discipline:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name_fr:
+          type: string
+          maxLength: 80
+        name_ar:
+          type: string
+          maxLength: 80
+        color_hex:
+          type: string
+          description: Used for contributor color-coding in the rich editor.
+          maxLength: 7
+      required:
+      - id
+      - name_fr
+    DisciplineRequest:
+      type: object
+      properties:
+        name_fr:
+          type: string
+          minLength: 1
+          maxLength: 80
+        name_ar:
+          type: string
+          maxLength: 80
+        color_hex:
+          type: string
+          minLength: 1
+          description: Used for contributor color-coding in the rich editor.
+          maxLength: 7
+      required:
+      - name_fr
+    Discussion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+        page:
+          type: integer
+          nullable: true
+        related_version:
+          type: integer
+          nullable: true
+        title:
+          type: string
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/DiscussionTypeEnum'
+        status:
+          $ref: '#/components/schemas/DiscussionStatusEnum'
+        opened_by:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        resolved_by:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        message_count:
+          type: string
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - message_count
+      - opened_by
+      - project
+      - resolved_at
+      - resolved_by
+      - title
+      - updated_at
+    DiscussionRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+        page:
+          type: integer
+          nullable: true
+        related_version:
+          type: integer
+          nullable: true
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/DiscussionTypeEnum'
+        status:
+          $ref: '#/components/schemas/DiscussionStatusEnum'
+      required:
+      - project
+      - title
+    DiscussionStatusEnum:
+      enum:
+      - open
+      - resolved
+      - archived
+      type: string
+      description: |-
+        * `open` - Ouvert
+        * `resolved` - Résolu
+        * `archived` - Archivé
+    DiscussionTypeEnum:
+      enum:
+      - general
+      - conflict
+      - review
+      type: string
+      description: |-
+        * `general` - Général
+        * `conflict` - Conflit éditorial
+        * `review` - Révision
+    ExportJob:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        requested_by:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        project:
+          type: integer
+          nullable: true
+        format:
+          $ref: '#/components/schemas/FormatEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExportJobStatusEnum'
+          readOnly: true
+        options: {}
+        file:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+        file_url:
+          type: string
+          readOnly: true
+        error_message:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - error_message
+      - file
+      - file_url
+      - finished_at
+      - format
+      - id
+      - requested_by
+      - started_at
+      - status
+    ExportJobRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+          nullable: true
+        format:
+          $ref: '#/components/schemas/FormatEnum'
+        options: {}
+      required:
+      - format
+    ExportJobStatusEnum:
+      enum:
+      - pending
+      - processing
+      - done
+      - failed
+      type: string
+      description: |-
+        * `pending` - En attente
+        * `processing` - En cours de traitement
+        * `done` - Terminé
+        * `failed` - Échec
+    FormatEnum:
+      enum:
+      - pdf
+      - zip
+      - geojson
+      - csv
+      type: string
+      description: |-
+        * `pdf` - PDF
+        * `zip` - Archive ZIP
+        * `geojson` - GeoJSON
+        * `csv` - CSV
+    HeritageResource:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name_fr:
+          type: string
+          maxLength: 200
+        name_ar:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        period:
+          $ref: '#/components/schemas/PeriodEnum'
+        architectural_type:
+          $ref: '#/components/schemas/ArchitecturalTypeEnum'
+        wilaya:
+          type: string
+          maxLength: 80
+        commune:
+          type: string
+          maxLength: 80
+        address:
+          type: string
+          maxLength: 255
+        longitude:
+          type: string
+          readOnly: true
+        latitude:
+          type: string
+          readOnly: true
+        classification_level:
+          $ref: '#/components/schemas/ClassificationLevelEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - architectural_type
+      - created_at
+      - id
+      - latitude
+      - longitude
+      - name_fr
+      - period
+      - updated_at
+      - wilaya
+    HeritageResourceRequest:
+      type: object
+      properties:
+        name_fr:
+          type: string
+          minLength: 1
+          maxLength: 200
+        name_ar:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        period:
+          $ref: '#/components/schemas/PeriodEnum'
+        architectural_type:
+          $ref: '#/components/schemas/ArchitecturalTypeEnum'
+        wilaya:
+          type: string
+          minLength: 1
+          maxLength: 80
+        commune:
+          type: string
+          maxLength: 80
+        address:
+          type: string
+          maxLength: 255
+        classification_level:
+          $ref: '#/components/schemas/ClassificationLevelEnum'
+      required:
+      - architectural_type
+      - name_fr
+      - period
+      - wilaya
+    HeritageResourceWrite:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name_fr:
+          type: string
+          maxLength: 200
+        name_ar:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        period:
+          $ref: '#/components/schemas/PeriodEnum'
+        architectural_type:
+          $ref: '#/components/schemas/ArchitecturalTypeEnum'
+        wilaya:
+          type: string
+          maxLength: 80
+        commune:
+          type: string
+          maxLength: 80
+        address:
+          type: string
+          maxLength: 255
+        classification_level:
+          $ref: '#/components/schemas/ClassificationLevelEnum'
+      required:
+      - architectural_type
+      - id
+      - name_fr
+      - period
+      - wilaya
+    HeritageResourceWriteRequest:
+      type: object
+      properties:
+        name_fr:
+          type: string
+          minLength: 1
+          maxLength: 200
+        name_ar:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        period:
+          $ref: '#/components/schemas/PeriodEnum'
+        architectural_type:
+          $ref: '#/components/schemas/ArchitecturalTypeEnum'
+        wilaya:
+          type: string
+          minLength: 1
+          maxLength: 80
+        commune:
+          type: string
+          maxLength: 80
+        address:
+          type: string
+          maxLength: 255
+        longitude:
+          type: number
+          format: double
+          writeOnly: true
+        latitude:
+          type: number
+          format: double
+          writeOnly: true
+        classification_level:
+          $ref: '#/components/schemas/ClassificationLevelEnum'
+      required:
+      - architectural_type
+      - name_fr
+      - period
+      - wilaya
+    Media:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          nullable: true
+        uploader:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        media_type:
+          $ref: '#/components/schemas/MediaTypeEnum'
+        file:
+          type: string
+          format: uri
+        file_url:
+          type: string
+          readOnly: true
+        mime_type:
+          type: string
+          readOnly: true
+        size_bytes:
+          type: integer
+          readOnly: true
+        width:
+          type: integer
+          readOnly: true
+          nullable: true
+        height:
+          type: integer
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        thumbnail:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+        thumbnail_url:
+          type: string
+          readOnly: true
+        caption:
+          type: string
+          maxLength: 255
+        license:
+          type: string
+          maxLength: 120
+        longitude:
+          type: string
+          readOnly: true
+        latitude:
+          type: string
+          readOnly: true
+        ai_tags:
+          readOnly: true
+        ai_status:
+          allOf:
+          - $ref: '#/components/schemas/AiStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - ai_status
+      - ai_tags
+      - created_at
+      - duration_seconds
+      - file
+      - file_url
+      - height
+      - id
+      - latitude
+      - longitude
+      - media_type
+      - mime_type
+      - size_bytes
+      - thumbnail
+      - thumbnail_url
+      - uploader
+      - width
+    MediaTypeEnum:
+      enum:
+      - image
+      - video
+      - document
+      - model_3d
+      type: string
+      description: |-
+        * `image` - Image
+        * `video` - Vidéo
+        * `document` - Document
+        * `model_3d` - Modèle 3D
+    MediaUpload:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          nullable: true
+        media_type:
+          $ref: '#/components/schemas/MediaTypeEnum'
+        file:
+          type: string
+          format: uri
+        caption:
+          type: string
+          maxLength: 255
+        license:
+          type: string
+          maxLength: 120
+      required:
+      - file
+      - id
+      - media_type
+    MediaUploadRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+          nullable: true
+        media_type:
+          $ref: '#/components/schemas/MediaTypeEnum'
+        file:
+          type: string
+          format: binary
+        caption:
+          type: string
+          maxLength: 255
+        license:
+          type: string
+          maxLength: 120
+        longitude:
+          type: number
+          format: double
+          writeOnly: true
+        latitude:
+          type: number
+          format: double
+          writeOnly: true
+      required:
+      - file
+      - media_type
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        discussion:
+          type: integer
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        body:
+          type: string
+        parent:
+          type: integer
+          nullable: true
+        is_proposal:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        edited_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - author
+      - body
+      - created_at
+      - discussion
+      - edited_at
+      - id
+    MessageRequest:
+      type: object
+      properties:
+        discussion:
+          type: integer
+        body:
+          type: string
+          minLength: 1
+        parent:
+          type: integer
+          nullable: true
+        is_proposal:
+          type: boolean
+      required:
+      - body
+      - discussion
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/NotificationTypeEnum'
+          readOnly: true
+        payload:
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        body:
+          type: string
+          readOnly: true
+        url:
+          type: string
+          readOnly: true
+        is_read:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        read_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - body
+      - created_at
+      - id
+      - is_read
+      - payload
+      - read_at
+      - title
+      - type
+      - url
+    NotificationTypeEnum:
+      enum:
+      - discussion_message
+      - version_published
+      - annotation_validated
+      - export_ready
+      - expert_validated
+      - expert_rejected
+      - project_invite
+      - system
+      type: string
+      description: |-
+        * `discussion_message` - Nouveau message de discussion
+        * `version_published` - Version de page publiée
+        * `annotation_validated` - Annotation validée
+        * `export_ready` - Export prêt
+        * `expert_validated` - Compte expert validé
+        * `expert_rejected` - Compte expert rejeté
+        * `project_invite` - Invitation au projet
+        * `system` - Système
+    Page:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+        title:
+          type: string
+          maxLength: 180
+        position:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        current_version:
+          allOf:
+          - $ref: '#/components/schemas/PageVersionMini'
+          readOnly: true
+        versions_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - current_version
+      - id
+      - project
+      - title
+      - updated_at
+      - versions_count
+    PageRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        position:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+      required:
+      - project
+      - title
+    PageVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        page:
+          type: integer
+          readOnly: true
+        version_number:
+          type: integer
+          readOnly: true
+        parent_version:
+          type: integer
+          nullable: true
+        content_json: {}
+        change_summary:
+          type: string
+          maxLength: 240
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        discipline:
+          allOf:
+          - $ref: '#/components/schemas/Discipline'
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/StatusA9aEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author
+      - created_at
+      - discipline
+      - id
+      - page
+      - version_number
+    PageVersionMini:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        version_number:
+          type: integer
+          readOnly: true
+        change_summary:
+          type: string
+          readOnly: true
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        discipline:
+          allOf:
+          - $ref: '#/components/schemas/Discipline'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusA9aEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        parent_version:
+          type: integer
+          readOnly: true
+          nullable: true
+      required:
+      - author
+      - change_summary
+      - created_at
+      - discipline
+      - id
+      - parent_version
+      - status
+      - version_number
+    PageVersionRequest:
+      type: object
+      properties:
+        parent_version:
+          type: integer
+          nullable: true
+        content_json: {}
+        change_summary:
+          type: string
+          maxLength: 240
+        discipline_id:
+          type: integer
+          writeOnly: true
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StatusA9aEnum'
+    PaginatedAnnotationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Annotation'
+    PaginatedChatSessionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatSession'
+    PaginatedDisciplineList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Discipline'
+    PaginatedDiscussionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Discussion'
+    PaginatedExportJobList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExportJob'
+    PaginatedHeritageResourceList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/HeritageResource'
+    PaginatedMediaList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+    PaginatedMessageList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedPageList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Page'
+    PaginatedPageVersionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PageVersion'
+    PaginatedProjectList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PatchedAnnotationWriteRequest:
+      type: object
+      properties:
+        media:
+          type: integer
+          nullable: true
+        resource:
+          type: integer
+          nullable: true
+        geometry_json: {}
+        longitude:
+          type: number
+          format: double
+          writeOnly: true
+        latitude:
+          type: number
+          format: double
+          writeOnly: true
+        body_text:
+          type: string
+        discipline:
+          type: integer
+          nullable: true
+        is_ai_generated:
+          type: boolean
+    PatchedDiscussionRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+        page:
+          type: integer
+          nullable: true
+        related_version:
+          type: integer
+          nullable: true
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/DiscussionTypeEnum'
+        status:
+          $ref: '#/components/schemas/DiscussionStatusEnum'
+    PatchedExportJobRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+          nullable: true
+        format:
+          $ref: '#/components/schemas/FormatEnum'
+        options: {}
+    PatchedHeritageResourceWriteRequest:
+      type: object
+      properties:
+        name_fr:
+          type: string
+          minLength: 1
+          maxLength: 200
+        name_ar:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        period:
+          $ref: '#/components/schemas/PeriodEnum'
+        architectural_type:
+          $ref: '#/components/schemas/ArchitecturalTypeEnum'
+        wilaya:
+          type: string
+          minLength: 1
+          maxLength: 80
+        commune:
+          type: string
+          maxLength: 80
+        address:
+          type: string
+          maxLength: 255
+        longitude:
+          type: number
+          format: double
+          writeOnly: true
+        latitude:
+          type: number
+          format: double
+          writeOnly: true
+        classification_level:
+          $ref: '#/components/schemas/ClassificationLevelEnum'
+    PatchedMediaUploadRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+          nullable: true
+        media_type:
+          $ref: '#/components/schemas/MediaTypeEnum'
+        file:
+          type: string
+          format: binary
+        caption:
+          type: string
+          maxLength: 255
+        license:
+          type: string
+          maxLength: 120
+        longitude:
+          type: number
+          format: double
+          writeOnly: true
+        latitude:
+          type: number
+          format: double
+          writeOnly: true
+    PatchedMessageRequest:
+      type: object
+      properties:
+        discussion:
+          type: integer
+        body:
+          type: string
+          minLength: 1
+        parent:
+          type: integer
+          nullable: true
+        is_proposal:
+          type: boolean
+    PatchedPageRequest:
+      type: object
+      properties:
+        project:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        position:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+    PatchedPageVersionRequest:
+      type: object
+      properties:
+        parent_version:
+          type: integer
+          nullable: true
+        content_json: {}
+        change_summary:
+          type: string
+          maxLength: 240
+        discipline_id:
+          type: integer
+          writeOnly: true
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StatusA9aEnum'
+    PatchedProjectRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 240
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ProjectStatusEnum'
+        resource_id:
+          type: integer
+          writeOnly: true
+    PatchedUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          title: Adresse e-mail
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+        institution_name:
+          type: string
+          maxLength: 160
+        discipline_ids:
+          type: array
+          items:
+            type: integer
+            writeOnly: true
+          writeOnly: true
+    PeriodEnum:
+      enum:
+      - prehistoric
+      - numidian
+      - roman
+      - medieval
+      - ottoman
+      - colonial
+      - contemporary
+      type: string
+      description: |-
+        * `prehistoric` - Préhistorique
+        * `numidian` - Numide
+        * `roman` - Romain
+        * `medieval` - Médiéval
+        * `ottoman` - Ottoman
+        * `colonial` - Colonial
+        * `contemporary` - Contemporain
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 240
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ProjectStatusEnum'
+        resource:
+          allOf:
+          - $ref: '#/components/schemas/HeritageResource'
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        member_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - member_count
+      - resource
+      - title
+      - updated_at
+    ProjectRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 240
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ProjectStatusEnum'
+        resource_id:
+          type: integer
+          writeOnly: true
+      required:
+      - resource_id
+      - title
+    ProjectStatusEnum:
+      enum:
+      - draft
+      - in_progress
+      - published
+      - archived
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `in_progress` - En cours
+        * `published` - Publié
+        * `archived` - Archivé
+    Register:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          title: Adresse e-mail
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 80
+        institution_name:
+          type: string
+          maxLength: 160
+        bio:
+          type: string
+      required:
+      - email
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          title: Adresse e-mail
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 80
+        institution_name:
+          type: string
+          maxLength: 160
+        bio:
+          type: string
+        discipline_ids:
+          type: array
+          items:
+            type: integer
+            writeOnly: true
+          writeOnly: true
+        requested_role:
+          allOf:
+          - $ref: '#/components/schemas/RequestedRoleEnum'
+          writeOnly: true
+          default: researcher
+      required:
+      - email
+      - password
+    RequestedRoleEnum:
+      enum:
+      - researcher
+      - expert
+      type: string
+      description: |-
+        * `researcher` - researcher
+        * `expert` - expert
+    Role489Enum:
+      enum:
+      - admin
+      - expert
+      - researcher
+      - visitor
+      type: string
+      description: |-
+        * `admin` - Administrateur
+        * `expert` - Expert validé
+        * `researcher` - Chercheur invité
+        * `visitor` - Visiteur
+    SocialLogin:
+      type: object
+      properties:
+        access_token:
+          type: string
+        code:
+          type: string
+        id_token:
+          type: string
+    SocialLoginRequest:
+      type: object
+      properties:
+        access_token:
+          type: string
+        code:
+          type: string
+        id_token:
+          type: string
+    Status969Enum:
+      enum:
+      - pending
+      - active
+      - rejected
+      type: string
+      description: |-
+        * `pending` - En attente de validation
+        * `active` - Actif
+        * `rejected` - Rejeté
+    StatusA9aEnum:
+      enum:
+      - draft
+      - published
+      type: string
+      description: |-
+        * `draft` - Brouillon
+        * `published` - Publié
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TokenRequest:
+      type: object
+      description: Embed user info in the JWT response.
+      properties:
+        email:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Adresse e-mail
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 80
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/Role489Enum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status969Enum'
+          readOnly: true
+        bio:
+          type: string
+        institution_name:
+          type: string
+          maxLength: 160
+        disciplines:
+          type: array
+          items:
+            $ref: '#/components/schemas/Discipline'
+          readOnly: true
+        validated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_login_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - disciplines
+      - email
+      - full_name
+      - id
+      - last_login_at
+      - role
+      - status
+      - validated_at
+    UserMini:
+      type: object
+      description: Minimal user representation, embedded in many resources.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Adresse e-mail
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/Role489Enum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status969Enum'
+          readOnly: true
+      required:
+      - email
+      - full_name
+      - id
+      - role
+      - status
+    UserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          title: Adresse e-mail
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+        institution_name:
+          type: string
+          maxLength: 160
+        discipline_ids:
+          type: array
+          items:
+            type: integer
+            writeOnly: true
+          writeOnly: true
+      required:
+      - email
+    ValidateExpertRequest:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        note:
+          type: string
+      required:
+      - decision
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

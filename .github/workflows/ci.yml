@@ -72,12 +72,50 @@ jobs:
         working-directory: backend
         run: python manage.py migrate --noinput
 
-      - name: Run pytest
+      # Informational: surfaces deploy-time security posture (SSL, HSTS,
+      # cookies). Fails only on ERROR-level issues, not the expected
+      # test-key / schema warnings.
+      - name: Django deploy security check
         working-directory: backend
-        run: pytest -v
+        env:
+          DJANGO_DEBUG: "0"
+        run: python manage.py check --deploy
+
+      - name: Run pytest (with coverage)
+        working-directory: backend
+        run: pytest -v --cov=apps --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: ignore
+
+  security-audit:
+    name: Backend — dependency CVE audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.7.3
+
+      # Non-blocking: surfaces known CVEs in dependencies without failing the
+      # pipeline (some transitive pins lag upstream fixes). Review on each run.
+      - name: Audit dependencies
+        working-directory: backend
+        continue-on-error: true
+        run: pip-audit -r requirements.txt --desc
 
   frontend:
-    name: Frontend — build
+    name: Frontend — test + build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,6 +130,10 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm ci --legacy-peer-deps
+
+      - name: Run unit tests (vitest)
+        working-directory: frontend
+        run: npm run test
 
       - name: Build
         working-directory: frontend

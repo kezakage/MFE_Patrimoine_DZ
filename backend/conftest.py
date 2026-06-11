@@ -18,6 +18,38 @@ from apps.heritage.models import HeritageResource, Project, ProjectMember
 
 
 # ---------------------------------------------------------------------------
+# Elasticsearch isolation
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _disable_es_autosync(settings):
+    """Stop test fixtures from writing into the shared Elasticsearch index.
+
+    Fixtures here create real HeritageResource rows. With realtime autosync on,
+    django-elasticsearch-dsl indexes them into the production `heritage_resources`
+    index, which is NOT rolled back with the test DB — so orphan "…de test"
+    documents accumulate on every run and pollute live search. The ES-backed
+    tests monkeypatch `HeritageResourceDocument.search`, so none of them rely on
+    real indexing.
+    """
+    settings.ELASTICSEARCH_DSL_AUTOSYNC = False
+    settings.ELASTICSEARCH_DSL_AUTO_REFRESH = False
+
+
+@pytest.fixture(autouse=True)
+def _clear_throttle_cache():
+    """Start every test with an empty cache.
+
+    DRF throttling (e.g. the chatbot's `chat_user`/`chat_anon` scopes) keeps
+    its counters in the shared Redis cache, which is NOT rolled back with the
+    test DB. Without this, throttle state leaks between runs — and from live
+    dev traffic — making rate-limit tests flaky and order-dependent.
+    """
+    from django.core.cache import cache
+    cache.clear()
+    yield
+
+
+# ---------------------------------------------------------------------------
 # Clients
 # ---------------------------------------------------------------------------
 @pytest.fixture

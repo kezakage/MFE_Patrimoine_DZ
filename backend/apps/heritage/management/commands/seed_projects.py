@@ -406,8 +406,34 @@ PROJECT_BLUEPRINTS = {
 }
 
 
+def _generic_blueprint(resource):
+    """Build a minimal project blueprint for a resource that has no curated
+    blueprint, so every HeritageResource ends up with a documented project
+    (gallery, collaborative space, PDF export all become available)."""
+    desc = (resource.description or "").strip()
+    pres = [f"# Présentation", desc] if desc else [f"# Présentation",
+            f"Fiche de documentation collaborative de « {resource.name_fr} »."]
+    loc = resource.wilaya + (f", {resource.commune}" if resource.commune else "")
+    return {
+        "title": f"Documentation : {resource.name_fr}",
+        "description": desc or f"Projet collaboratif de documentation de {resource.name_fr}.",
+        "status": "published",
+        "pages": [
+            ("Présentation", pres),
+            ("Localisation", [
+                "# Localisation",
+                f"Ce patrimoine se situe à {loc}, en Algérie."
+                + (f" Classement : {resource.get_classification_level_display()}."
+                   if resource.classification_level else ""),
+            ]),
+        ],
+        "members": [("expert@patrimoine.dz", "reviewer")],
+        "discussions": [],
+    }
+
+
 class Command(BaseCommand):
-    help = "Seed 10 enriched projects (pages, members, discussions, votes)."
+    help = "Seed enriched projects for every heritage resource (pages, members, discussions, votes)."
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -418,11 +444,18 @@ class Command(BaseCommand):
             ))
             return
 
+        # Build the full work list: curated blueprints first, then a generic
+        # blueprint for every remaining resource so coverage is exhaustive.
+        blueprints = dict(PROJECT_BLUEPRINTS)
+        for resource in HeritageResource.objects.all():
+            if resource.name_fr not in blueprints:
+                blueprints[resource.name_fr] = _generic_blueprint(resource)
+
         # Discipline lookup for color-coding
         disc_arch = Discipline.objects.filter(name_fr="Architecture").first()
 
         projects_created = 0
-        for resource_name, blueprint in PROJECT_BLUEPRINTS.items():
+        for resource_name, blueprint in blueprints.items():
             resource = HeritageResource.objects.filter(name_fr=resource_name).first()
             if not resource:
                 self.stdout.write(self.style.WARNING(

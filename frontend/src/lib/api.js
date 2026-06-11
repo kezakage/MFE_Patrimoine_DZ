@@ -73,7 +73,13 @@ async function request(path, { method = 'GET', body, query, headers, raw } = {})
 
   let res = await fetch(url, opts)
 
-  if (res.status === 401 && tokens.refresh) {
+  // Don't try to refresh-and-retry on the auth endpoints themselves —
+  // a 401 from /auth/login/ means bad credentials, not an expired token.
+  const isAuthEndpoint = url.pathname.includes('/auth/login/')
+    || url.pathname.includes('/auth/refresh/')
+    || url.pathname.includes('/auth/register/')
+
+  if (res.status === 401 && tokens.refresh && !isAuthEndpoint) {
     const ok = await refreshAccess()
     if (ok) {
       finalHeaders.Authorization = `Bearer ${tokens.access}`
@@ -112,15 +118,24 @@ export const api = {
 // ---------- domain helpers ----------
 
 export const auth = {
-  login: (email, password) => api.post('/auth/login/', { email, password }),
+  // `otp` is sent only when the account has 2FA enabled and the user has
+  // entered their authenticator code.
+  login: (email, password, otp) =>
+    api.post('/auth/login/', { email, password, ...(otp ? { otp } : {}) }),
   refresh: (refresh) => api.post('/auth/refresh/', { refresh }),
   register: (data) => api.post('/auth/register/', data),
+  verifyEmail: (token) => api.post('/auth/verify-email/', { token }),
+  resendVerification: (email) => api.post('/auth/resend-verification/', { email }),
   me: () => api.get('/auth/me/'),
   // OAuth2 / SSO
   socialProviders: () => api.get('/auth/social/providers/'),
   socialLogin: (provider, code, redirect_uri) =>
     api.post(`/auth/social/${provider}/`, { code, redirect_uri }),
   updateMe: (id, data) => api.patch(`/auth/me/${id}/`, data),
+  // Two-factor authentication (TOTP)
+  twoFactorSetup: () => api.post('/auth/2fa/setup/'),
+  twoFactorEnable: (otp) => api.post('/auth/2fa/enable/', { otp }),
+  twoFactorDisable: (otp) => api.post('/auth/2fa/disable/', { otp }),
 }
 
 export const heritage = {
@@ -136,16 +151,18 @@ export const heritage = {
   project: (id) => api.get(`/heritage/projects/${id}/`),
   createProject: (data) => api.post('/heritage/projects/', data),
   updateProject: (id, data) => api.patch(`/heritage/projects/${id}/`, data),
+  deleteProject: (id) => api.del(`/heritage/projects/${id}/`),
   publish: (id) => api.post(`/heritage/projects/${id}/publish/`),
   members: (id) => api.get(`/heritage/projects/${id}/members/`),
   addMember: (id, data) => api.post(`/heritage/projects/${id}/members/`, data),
+  join: (id) => api.post(`/heritage/projects/${id}/join/`),
 }
 
 export const pages = {
   list: (project) => api.get('/pages/', { project }),
   get: (id) => api.get(`/pages/${id}/`),
   create: (data) => api.post('/pages/', data),
-  history: (id) => api.get(`/pages/${id}/history/`),
+  history: (id) => api.get(`/pages/versions/history/${id}/`),
   versions: (page) => api.get('/pages/versions/', { page }),
   createVersion: (data) => api.post('/pages/versions/', data),
   restore: (versionId) => api.post(`/pages/versions/${versionId}/restore/`),
@@ -205,7 +222,7 @@ export const chat = {
 export const adminApi = {
   users: (filters) => api.get('/auth/admin/users/', filters),
   validateUser: (id, action = 'approve') =>
-    api.post(`/auth/admin/users/${id}/validate/`, { action }),
+    api.post(`/auth/admin/users/${id}/validate/`, { decision: action }),
   suspend: (id) => api.post(`/auth/admin/users/${id}/suspend/`),
   disciplines: () => api.get('/auth/disciplines/'),
   stats: () => api.get('/auth/admin/stats/'),

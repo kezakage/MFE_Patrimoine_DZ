@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, Search, Grid as GridIcon, List as ListIcon, Loader2 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus, Search, Grid as GridIcon, List as ListIcon, Loader2, UserPlus, CheckCircle2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { projectToCard } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -9,17 +9,34 @@ import { heritage } from '../../lib/api.js'
 
 export default function ProjectsList() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
+  const [scope, setScope] = useState('mine') // 'mine' | 'all'
   const [view, setView] = useState('grid')
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [joiningId, setJoiningId] = useState(null)
+
+  const handleJoin = async (project) => {
+    setJoiningId(project.id)
+    try {
+      await heritage.join(project.id)
+      setItems(prev => prev.map(p => p.id === project.id ? { ...p, isMember: true } : p))
+      navigate(`/app/projets/${project.id}`)
+    } catch (e) {
+      setError(e.data?.detail || e.message)
+    } finally {
+      setJoiningId(null)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     heritage.projects({
+      mine: scope === 'mine' ? true : undefined,
       search: q || undefined,
       status: status || undefined,
     })
@@ -31,7 +48,7 @@ export default function ProjectsList() {
       .catch((e) => { if (!cancelled) setError(e.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [q, status])
+  }, [q, status, scope])
 
   return (
     <div className="space-y-5">
@@ -41,6 +58,17 @@ export default function ProjectsList() {
           <p className="section-subtitle">{t('projects.subtitle')}</p>
         </div>
         <Link to="/app/projets/nouveau" className="btn-primary"><Plus size={16}/>{t('projects.newProject')}</Link>
+      </div>
+
+      <div className="inline-flex bg-sand-50 rounded-lg border border-sand-200 p-1">
+        <button
+          onClick={() => setScope('mine')}
+          className={`btn px-4 ${scope === 'mine' ? 'bg-white shadow text-terracotta-700' : 'text-sand-600'}`}
+        >Mes projets</button>
+        <button
+          onClick={() => setScope('all')}
+          className={`btn px-4 ${scope === 'all' ? 'bg-white shadow text-terracotta-700' : 'text-sand-600'}`}
+        >Découvrir</button>
       </div>
 
       <div className="card p-4 flex flex-wrap gap-3 items-end">
@@ -76,13 +104,36 @@ export default function ProjectsList() {
 
       {!loading && !error && items.length === 0 && (
         <div className="card p-10 text-center text-sand-600">
-          {t('projects.emptyHint')}
+          {scope === 'mine'
+            ? "Vous n'avez encore aucun projet. Cliquez sur « Découvrir » pour rejoindre un projet existant, ou créez-en un nouveau."
+            : t('projects.emptyHint')}
         </div>
       )}
 
       {view === 'grid' ? (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {items.map(p => <ProjectCard key={p.id} project={p} to={`/app/projets/${p.id}`}/>)}
+          {items.map(p => (
+            <div key={p.id} className="relative">
+              <ProjectCard project={p} to={`/app/projets/${p.id}`}/>
+              {scope === 'all' && !p.isMember && p.status === 'published' && (
+                <button
+                  disabled={joiningId === p.id}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleJoin(p) }}
+                  className="absolute bottom-3 end-3 btn-primary text-xs px-3 py-1.5 shadow-lg"
+                >
+                  {joiningId === p.id
+                    ? <Loader2 size={14} className="animate-spin"/>
+                    : <UserPlus size={14}/>}
+                  Rejoindre
+                </button>
+              )}
+              {scope === 'all' && p.isMember && (
+                <span className="absolute bottom-3 end-3 chip bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                  <CheckCircle2 size={12}/> Membre
+                </span>
+              )}
+            </div>
+          ))}
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -94,6 +145,7 @@ export default function ProjectsList() {
                 <th className="text-start px-4 py-3">{t('projects.table.period')}</th>
                 <th className="text-start px-4 py-3">{t('projects.table.type')}</th>
                 <th className="text-start px-4 py-3">{t('projects.table.status')}</th>
+                {scope === 'all' && <th className="text-start px-4 py-3"></th>}
               </tr>
             </thead>
             <tbody>
@@ -106,6 +158,26 @@ export default function ProjectsList() {
                   <td className="px-4 py-3">{p.period}</td>
                   <td className="px-4 py-3">{p.type}</td>
                   <td className="px-4 py-3"><StatusBadge status={p.status}/></td>
+                  {scope === 'all' && (
+                    <td className="px-4 py-3 text-end">
+                      {p.isMember ? (
+                        <span className="chip bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                          <CheckCircle2 size={12}/> Membre
+                        </span>
+                      ) : p.status === 'published' ? (
+                        <button
+                          disabled={joiningId === p.id}
+                          onClick={() => handleJoin(p)}
+                          className="btn-primary text-xs px-3 py-1.5"
+                        >
+                          {joiningId === p.id
+                            ? <Loader2 size={14} className="animate-spin"/>
+                            : <UserPlus size={14}/>}
+                          Rejoindre
+                        </button>
+                      ) : null}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search as SearchIcon, Folder, Loader2, X } from 'lucide-react'
-import { heritage } from '../../lib/api.js'
+import { Search as SearchIcon, Folder, Loader2, X, Sparkles } from 'lucide-react'
+import { heritage, adminApi } from '../../lib/api.js'
 import { PERIODS, TYPES } from '../../data/projects.js'
 
 // Maps for translating facet keys (raw enum values) to French labels.
@@ -13,6 +13,15 @@ const CLASSIF_LABEL = {
   regional: 'Régional',
   unclassified: 'Non classé',
 }
+
+// Search modes — keyword keeps the existing fuzzy ES behavior; hybrid retrieves
+// candidates from ES then reranks them with a dense embedding cosine score;
+// semantic ranks purely by embedding similarity (slowest, best for paraphrases).
+const SEARCH_MODES = [
+  { value: 'keyword', label: 'Mots-clés' },
+  { value: 'hybrid', label: 'Hybride' },
+  { value: 'semantic', label: 'Sémantique' },
+]
 
 // Render an array of highlight HTML fragments (already wrapped in <mark>).
 // Safe because the backend controls the markup (only <mark>...</mark> + text).
@@ -57,19 +66,36 @@ function FacetGroup({ title, name, buckets, selected, onToggle, labelMap }) {
 
 export default function AdvancedSearch() {
   const [q, setQ] = useState('')
+  const [mode, setMode] = useState('keyword')
   const [filters, setFilters] = useState({
     period: [], architectural_type: [], classification_level: [], wilaya: [],
+    disciplines: [],
   })
   const [data, setData] = useState({ total: 0, results: [], facets: {} })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  // Discipline label map — fetched once from the canonical accounts catalog
+  // so the facet shows "Architecture" instead of the raw enum value.
+  const [disciplineLabels, setDisciplineLabels] = useState({})
+  useEffect(() => {
+    adminApi.disciplines()
+      .then((list) => {
+        const rows = Array.isArray(list) ? list : (list.results || [])
+        setDisciplineLabels(Object.fromEntries(rows.map(d => [d.name_fr, d.name_fr])))
+      })
+      .catch(() => {})
+  }, [])
 
   // Suggest (autocomplete)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggest, setShowSuggest] = useState(false)
   const suggestTimer = useRef(null)
 
-  const params = useMemo(() => ({ q, ...filters, size: 30 }), [q, filters])
+  const params = useMemo(
+    () => ({ q, mode, ...filters, size: 30 }),
+    [q, mode, filters],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -104,7 +130,10 @@ export default function AdvancedSearch() {
   }
 
   function clearFilters() {
-    setFilters({ period: [], architectural_type: [], classification_level: [], wilaya: [] })
+    setFilters({
+      period: [], architectural_type: [], classification_level: [], wilaya: [],
+      disciplines: [],
+    })
   }
 
   const activeCount = Object.values(filters).reduce((s, v) => s + v.length, 0)
@@ -114,8 +143,33 @@ export default function AdvancedSearch() {
       <div>
         <h1 className="section-title">Recherche avancée</h1>
         <p className="section-subtitle">
-          Recherche plein texte multilingue (FR + AR) avec facettes — propulsée par Elasticsearch.
+          Recherche plein texte multilingue (FR + AR), facettes multidimensionnelles
+          et rerank sémantique sur embeddings.
         </p>
+      </div>
+
+      {/* Mode toggle — keyword (BM25), hybrid (BM25 + cosine rerank), semantic (pure vector). */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs uppercase tracking-widest text-sand-500 flex items-center gap-1">
+          <Sparkles size={14} /> Mode
+        </span>
+        {SEARCH_MODES.map(m => (
+          <button
+            key={m.value}
+            type="button"
+            onClick={() => setMode(m.value)}
+            className={`px-3 py-1 rounded-full text-xs border transition ${
+              mode === m.value
+                ? 'bg-clay-700 text-white border-clay-700'
+                : 'bg-white text-sand-700 border-sand-200 hover:border-clay-400'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+        {data.rerank_applied && (
+          <span className="text-xs text-clay-700">· rerank actif</span>
+        )}
       </div>
 
       {/* Search bar with autocomplete */}
@@ -170,6 +224,9 @@ export default function AdvancedSearch() {
                       selected={filters.classification_level} onToggle={toggleFacet} labelMap={CLASSIF_LABEL} />
           <FacetGroup title="Wilaya" name="wilaya" buckets={data.facets?.wilaya}
                       selected={filters.wilaya} onToggle={toggleFacet} />
+          <FacetGroup title="Discipline" name="disciplines" buckets={data.facets?.disciplines}
+                      selected={filters.disciplines} onToggle={toggleFacet}
+                      labelMap={disciplineLabels} />
         </aside>
 
         {/* Results */}
@@ -190,7 +247,7 @@ export default function AdvancedSearch() {
           <ul className="mt-3 divide-y divide-sand-100">
             {data.results.map(r => (
               <li key={r.id}>
-                <Link to={`/explorer/${r.id}`} className="block py-3 px-2 rounded-lg hover:bg-sand-50">
+                <Link to={`/projets-publics/${r.id}`} className="block py-3 px-2 rounded-lg hover:bg-sand-50">
                   <div className="font-medium"
                        dangerouslySetInnerHTML={{
                          __html: r.highlight?.name_fr?.[0] || r.name_fr || '',

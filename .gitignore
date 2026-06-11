@@ -34,6 +34,7 @@ desktop.ini
 
 # Claude Code workspace files (not part of the project)
 .agents/
+.claude/
 SKILL.md
 skills-lock.json
 *.md
@@ -41,3 +42,5 @@ skills-lock.json
 # Celery
 celerybeat-schedule
 celerybeat-schedule.*
+# MkDocs build output
+site/

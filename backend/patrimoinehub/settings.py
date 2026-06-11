@@ -233,12 +233,19 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "patrimoinehub.pagination.StandardPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Throttling is keyed per client IP. It can be turned off for single-source
+    # load tests (where 50 virtual users would otherwise share one IP bucket
+    # and trip 429s that never happen with real, distinct-IP traffic).
     "DEFAULT_THROTTLE_CLASSES": (
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        (
+            "rest_framework.throttling.AnonRateThrottle",
+            "rest_framework.throttling.UserRateThrottle",
+        )
+        if env_bool("API_THROTTLE_ENABLED", True)
+        else ()
     ),
     "DEFAULT_THROTTLE_RATES": {
         "anon": "300/hour",
@@ -305,6 +312,28 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+# ---------------------------------------------------------------------------
+# Sentry — error & performance tracking
+# ---------------------------------------------------------------------------
+# Initialised only when SENTRY_DSN is set, so local/dev runs stay offline and
+# the demo cluster never ships events unless explicitly configured. Sampling
+# rates are tunable via env to keep production quota under control.
+SENTRY_DSN = env("SENTRY_DSN", "")
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.redis import RedisIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
+        environment=env("SENTRY_ENVIRONMENT", "production" if not DEBUG else "development"),
+        release=env("SENTRY_RELEASE", None),
+        traces_sample_rate=float(env("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        send_default_pii=env_bool("SENTRY_SEND_PII", False),
+    )
 
 # ---------------------------------------------------------------------------
 # CORS
@@ -467,3 +496,26 @@ if not DEBUG:
     # so allow it explicitly. Configured via env so we don't bake a hostname
     # into the codebase.
     CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", [])
+
+
+# ---------------------------------------------------------------------------
+# Email (sign-up confirmation flow + admin notifications)
+# ---------------------------------------------------------------------------
+# In dev, fall back to the console backend so confirmation links are visible
+# in the runserver output without any SMTP setup. In prod, configure a real
+# SMTP host via env vars.
+EMAIL_BACKEND = env(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend" if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = env("DJANGO_EMAIL_HOST", "localhost")
+EMAIL_PORT = int(env("DJANGO_EMAIL_PORT", "587"))
+EMAIL_HOST_USER = env("DJANGO_EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("DJANGO_EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("DJANGO_EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = env("DJANGO_DEFAULT_FROM_EMAIL", "no-reply@patrimoinehub.dz")
+
+# Base URL of the SPA — used to build the click-through link in confirmation
+# emails. Must match the origin allowed in CORS / CSRF.
+FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:5173")

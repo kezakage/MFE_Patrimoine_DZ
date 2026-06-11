@@ -10,6 +10,11 @@ from django.conf import settings
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from pgvector.django import HnswIndex, VectorField
+
+# Dimension of paraphrase-multilingual-mpnet-base-v2 (FR + AR, 768 dims).
+# Kept identical to the chatbot's KnowledgeChunk so both reuse one model load.
+HERITAGE_EMBEDDING_DIM = 768
 
 
 class HeritageResource(models.Model):
@@ -45,6 +50,11 @@ class HeritageResource(models.Model):
     name_ar = models.CharField(max_length=200, blank=True)
     description = models.TextField(blank=True)
 
+    # Canonical cover image for the resource (independent of any project Media).
+    # A plain URL keeps demos offline-friendly (browser-cached) and leaves room
+    # for a future IIIF manifest reference. Falls back to project Media if empty.
+    cover_image_url = models.URLField(max_length=500, blank=True, default="")
+
     period = models.CharField(max_length=20, choices=Period.choices, db_index=True)
     architectural_type = models.CharField(max_length=24, choices=ArchitecturalType.choices, db_index=True)
 
@@ -60,6 +70,24 @@ class HeritageResource(models.Model):
         default=ClassificationLevel.UNCLASSIFIED, db_index=True,
     )
 
+    # Contributing scientific disciplines relevant to this resource (architecture,
+    # archaeology, history, ...). Used as a search facet and to colour-code
+    # contributions in the editor. Sourced from the accounts.Discipline catalog
+    # so admins/experts keep a single canonical list.
+    disciplines = models.ManyToManyField(
+        "accounts.Discipline",
+        related_name="heritage_resources",
+        blank=True,
+    )
+
+    # Dense semantic embedding of `name_fr + " — " + description`, produced by
+    # the same multilingual sentence-transformers model used by the chatbot.
+    # Nullable: backfilled by the `embed_heritage` management command (or the
+    # admin re-embed action) — the legacy keyword search path works without it.
+    embedding = VectorField(
+        dimensions=HERITAGE_EMBEDDING_DIM, null=True, blank=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,6 +95,15 @@ class HeritageResource(models.Model):
         ordering = ("name_fr",)
         indexes = [
             models.Index(fields=["period", "architectural_type"]),
+            # HNSW index makes cosine kNN search O(log N). m / ef_construction
+            # mirror the chatbot's KnowledgeChunk index for consistency.
+            HnswIndex(
+                name="heritage_embedding_hnsw",
+                fields=["embedding"],
+                m=16,
+                ef_construction=64,
+                opclasses=["vector_cosine_ops"],
+            ),
         ]
 
     def __str__(self) -> str:  # pragma: no cover
@@ -87,6 +124,15 @@ class Project(models.Model):
     description = models.TextField(blank=True)
     status = models.CharField(
         max_length=14, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
+
+    cover_media = models.ForeignKey(
+        "media_app.Media",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="Image chosen as the project's main photo.",
     )
 
     created_by = models.ForeignKey(

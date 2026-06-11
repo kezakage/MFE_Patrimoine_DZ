@@ -21,6 +21,19 @@ class Discussion(models.Model):
         CONFLICT = "conflict", _("Editorial conflict")
         REVIEW = "review", _("Review")
 
+    class ConsensusState(models.TextChoices):
+        """Result of the expert-weighted vote tally for CONFLICT discussions.
+
+        PENDING  → not enough authoritative voices yet (below quorum)
+        APPROVED → weighted approval ratio passed the configured threshold
+        REJECTED → weighted rejection ratio passed the configured threshold
+        TIE      → quorum met but neither side reached the threshold
+        """
+        PENDING = "pending", _("Pending")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+        TIE = "tie", _("Tie")
+
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="discussions",
     )
@@ -44,6 +57,20 @@ class Discussion(models.Model):
     resolved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name="resolved_discussions",
+    )
+
+    # Last computed consensus snapshot. Stored (not derived live) so the
+    # frontend can render the banner without recomputing weights, and so an
+    # auto-resolution event has an immutable trail.
+    consensus_state = models.CharField(
+        max_length=10,
+        choices=ConsensusState.choices,
+        default=ConsensusState.PENDING,
+    )
+    consensus_auto_resolved = models.BooleanField(
+        default=False,
+        help_text="True if `status=RESOLVED` was set by the consensus engine "
+                  "rather than by a human clicking « marquer comme résolu ».",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -82,7 +109,13 @@ class Message(models.Model):
 
 
 class ConflictVote(models.Model):
-    """Simple unweighted vote on a proposal message inside a CONFLICT discussion."""
+    """A vote inside a CONFLICT discussion, weighted by the voter's authority.
+
+    `weight` is snapshotted at vote time (from settings.CONSENSUS_ROLE_WEIGHTS
+    plus a per-project membership bonus). Storing the snapshot — rather than
+    recomputing live — keeps the audit trail stable if a user's role changes
+    after they vote.
+    """
 
     class Choice(models.TextChoices):
         APPROVE = "approve", _("Approve")
@@ -102,6 +135,9 @@ class ConflictVote(models.Model):
     )
     choice = models.CharField(max_length=10, choices=Choice.choices)
     comment = models.CharField(max_length=240, blank=True)
+    # Voter authority at vote time. 0 means the vote is recorded but not
+    # counted (e.g. visitor role or unvalidated expert).
+    weight = models.PositiveSmallIntegerField(default=1)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

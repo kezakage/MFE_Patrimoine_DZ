@@ -43,6 +43,10 @@ class HeritageResourceDocument(Document):
     architectural_type = fields.KeywordField()
     classification_level = fields.KeywordField()
 
+    # Contributing disciplines (multi-valued). Stored as their canonical
+    # French name so the facet UI can display labels without a join.
+    disciplines = fields.KeywordField(multi=True)
+
     # Location: keyword for facets + text for fuzzy match.
     wilaya = fields.KeywordField(
         fields={"text": fields.TextField(analyzer="french")},
@@ -71,6 +75,10 @@ class HeritageResourceDocument(Document):
         # auto-extract from the text by passing the raw string. The completion
         # sub-field is populated automatically via fields={"suggest": ...}.
         return instance.name_fr or ""
+
+    def prepare_disciplines(self, instance):
+        # Materialise the M2M into a flat list of French names for faceting.
+        return list(instance.disciplines.values_list("name_fr", flat=True))
 
     # Ensure related-model changes don't silently leave the index stale.
     def get_queryset(self):

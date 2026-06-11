@@ -20,7 +20,7 @@ export default function ExportCenter() {
   }
 
   useEffect(() => {
-    heritage.projects()
+    heritage.projects({ mine: true })
       .then((data) => {
         const list = (Array.isArray(data) ? data : (data.results || [])).map(projectToCard)
         setProjects(list)

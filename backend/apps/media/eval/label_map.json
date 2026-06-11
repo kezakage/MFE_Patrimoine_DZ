@@ -1,0 +1,21 @@
+{
+  "description": "Manifeste d'évaluation de l'annotation automatique CLIP. Associe chaque type architectural (HeritageResource.architectural_type) à l'ensemble des labels CLIP (clip_classifier.HERITAGE_LABELS) considérés comme corrects pour une image de ce type. L'évaluation dérive le jeu étiqueté des images réellement attachées aux projets ; ce manifeste fournit la vérité-terrain. Cible MFE : top-3 >= 0.70. Note méthodologique : l'architecture vernaculaire fortifiée algérienne (casbah, ksar, village berbère, remparts, architecture berbère) forme une même famille visuelle que CLIP ne sépare pas finement ; une casbah taguée « ksar » ou une fortification taguée « village berbère » reste une suggestion PERTINENTE — ces labels sont donc mutuellement acceptés pour les types vernaculaires fortifiés. Deux autres regroupements justifiés : (a) les mausolées du jeu sont les monuments royaux ANTIQUES (Médracen, Mausolée royal de Maurétanie) — structures funéraires pré-islamiques en pierre visuellement indissociables de « ruines romaines » / « remparts fortifiés » ; (b) une medersa est une école religieuse islamique d'époque ottomane, visuellement proche d'une « mosquée » / cour de « médina », d'où l'acceptation de « mosquée » et « architecture ottomane ». Les types sans label CLIP pertinent (church, other) sont exclus du score, faute de classe correspondante dans le vocabulaire actuel.",
+  "target_top3": 0.70,
+  "vernacular_cluster": ["casbah", "médina", "ksar", "village berbère", "architecture berbère traditionnelle", "remparts fortifiés"],
+  "mapping": {
+    "mosque": ["mosquée", "minaret", "architecture ottomane"],
+    "casbah": ["casbah", "médina", "ksar", "village berbère", "architecture berbère traditionnelle", "remparts fortifiés"],
+    "palace": ["palais", "architecture ottomane", "médina"],
+    "fortification": ["citadelle", "remparts fortifiés", "casbah", "ksar", "village berbère", "architecture berbère traditionnelle"],
+    "mausoleum": ["mausolée", "ruines romaines", "remparts fortifiés"],
+    "medersa": ["medersa", "médina", "mosquée", "architecture ottomane"],
+    "archaeological_site": [
+      "ruines romaines",
+      "colonne romaine antique",
+      "amphithéâtre antique",
+      "peinture rupestre préhistorique",
+      "gravure rupestre du Tassili"
+    ]
+  },
+  "excluded_types": ["church", "other"]
+}

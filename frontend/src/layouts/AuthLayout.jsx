@@ -2,11 +2,12 @@ import { Outlet, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Logo from '../components/Logo.jsx'
 import LanguageSwitcher from '../components/LanguageSwitcher.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 
 export default function AuthLayout() {
   const { t } = useTranslation()
   return (
-    <div className="min-h-screen grid md:grid-cols-2">
+    <div className="min-h-screen grid md:grid-cols-2 bg-white dark:bg-sand-900">
       <div className="hidden md:flex flex-col justify-between p-10 text-white relative overflow-hidden"
            style={{ background: 'linear-gradient(135deg,#67241a,#3e2417)' }}>
         <div className="absolute inset-0 opacity-20"
@@ -39,9 +40,11 @@ export default function AuthLayout() {
         </div>
         <Link to="/" className="text-sm text-sand-200 hover:text-white relative">← {t('nav.backToHome')}</Link>
       </div>
-      <div className="flex items-center justify-center p-6 md:p-10">
-        <div className="md:hidden flex justify-end mb-4">
-          <LanguageSwitcher />
+      <div className="flex flex-col items-center justify-center p-6 md:p-10 relative
+                      bg-white dark:bg-sand-900">
+        <div className="absolute top-4 end-4 flex items-center gap-2">
+          <ThemeToggle />
+          <div className="md:hidden"><LanguageSwitcher /></div>
         </div>
         <div className="w-full max-w-md">
           <Outlet />

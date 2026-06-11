@@ -1,0 +1,26 @@
+{
+  "description": "Jeu de test d'évaluation du chatbot documentaire PatrimoineHub. Chaque entrée vérifie (1) que le RAG récupère la bonne notice (expected_source: sous-chaîne attendue dans le titre d'une source citée) et (2) que la réponse couvre les mots-clés attendus (expected_keywords: au moins `min_keywords` présents). Cible MFE : exactitude globale >= 0.75.",
+  "min_keywords": 1,
+  "items": [
+    {"question": "Quand la Casbah d'Alger a-t-elle été classée au patrimoine mondial de l'UNESCO ?", "expected_source": "Casbah", "expected_keywords": ["1992", "UNESCO"]},
+    {"question": "Quel type d'architecture caractérise la Casbah d'Alger ?", "expected_source": "Casbah", "expected_keywords": ["ottomane", "médina", "vernaculaire"]},
+    {"question": "Où se trouve la vallée du M'Zab ?", "expected_source": "M'Zab", "expected_keywords": ["Ghardaïa", "pentapole", "Sahara"]},
+    {"question": "Qu'est-ce que Timgad ?", "expected_source": "Timgad", "expected_keywords": ["romaine", "Thamugadi", "colonie", "ville"]},
+    {"question": "Quel plan urbain a été utilisé pour la ville romaine de Timgad ?", "expected_source": "Timgad", "expected_keywords": ["orthogonal", "damier", "cardo", "decumanus"]},
+    {"question": "Décris le site archéologique de Tipaza.", "expected_source": "Tipaza", "expected_keywords": ["romain", "phénicien", "mer", "archéologique"]},
+    {"question": "Qu'est-ce que le Tassili n'Ajjer est connu pour conserver ?", "expected_source": "Tassili", "expected_keywords": ["rupestre", "préhistorique", "gravures", "peintures"]},
+    {"question": "Parle-moi de la mosquée Ketchaoua à Alger.", "expected_source": "Ketchaoua", "expected_keywords": ["Alger", "ottomane", "cathédrale", "restauration"]},
+    {"question": "Qu'est-ce que la Qalâa des Béni Hammad ?", "expected_source": "Béni Hammad", "expected_keywords": ["hammadide", "capitale", "ruines"]},
+    {"question": "Où se situe le Mausolée royal de Maurétanie ?", "expected_source": "Mausolée royal de Maurétanie", "expected_keywords": ["Tipaza", "numide", "royal"]},
+    {"question": "Qu'est-ce que le Médracen ?", "expected_source": "Médracen", "expected_keywords": ["numide", "mausolée", "tombeau"]},
+    {"question": "Décris le Palais Ahmed Bey de Constantine.", "expected_source": "Ahmed Bey", "expected_keywords": ["Constantine", "palais", "ottoman", "bey"]},
+    {"question": "Qu'est-ce que la médersa Sidi El Kettani ?", "expected_source": "Sidi El Kettani", "expected_keywords": ["Constantine", "médersa", "enseignement"]},
+    {"question": "Où se trouve la mosquée Sidi Boumediene ?", "expected_source": "Sidi Boumediene", "expected_keywords": ["Tlemcen", "El-Eubbad", "mosquée"]},
+    {"question": "Parle-moi de Notre-Dame d'Afrique à Alger.", "expected_source": "Notre-Dame d'Afrique", "expected_keywords": ["basilique", "Alger", "néo-byzantin"]},
+    {"question": "Qu'est-ce que le Palais des Raïs (Bastion 23) ?", "expected_source": "Bastion 23", "expected_keywords": ["Alger", "ottoman", "palais", "mer"]},
+    {"question": "Décris le Pont Sidi M'Cid.", "expected_source": "Sidi M'Cid", "expected_keywords": ["Constantine", "pont", "suspendu", "gorges"]},
+    {"question": "Qu'est-ce que le Théâtre Romain de Cherchell ?", "expected_source": "Cherchell", "expected_keywords": ["romain", "théâtre", "antique"]},
+    {"question": "Quelle est la médersa Tachfiniya ?", "expected_source": "Tachfiniya", "expected_keywords": ["Tlemcen", "médersa", "zianide"]},
+    {"question": "Parle-moi de la mosquée Emir Abdelkader.", "expected_source": "Emir Abdelkader", "expected_keywords": ["Constantine", "mosquée", "moderne"]}
+  ]
+}

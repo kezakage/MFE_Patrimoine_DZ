@@ -74,6 +74,7 @@ class User(AbstractUser):
         VISITOR = "visitor", _("Visitor")
 
     class Status(models.TextChoices):
+        PENDING_EMAIL = "pending_email", _("Email non confirmé")
         PENDING = "pending", _("Pending validation")
         ACTIVE = "active", _("Active")
         REJECTED = "rejected", _("Rejected")
@@ -87,11 +88,18 @@ class User(AbstractUser):
         max_length=12, choices=Role.choices, default=Role.RESEARCHER
     )
     status = models.CharField(
-        max_length=12, choices=Status.choices, default=Status.PENDING
+        max_length=13, choices=Status.choices, default=Status.PENDING
     )
 
     bio = models.TextField(blank=True)
     institution_name = models.CharField(max_length=160, blank=True)
+
+    # TOTP two-factor authentication (RFC 6238). `totp_secret` holds the
+    # base32 shared secret; it is set during setup and cleared on disable.
+    # `two_factor_enabled` flips to True only after the user proves they can
+    # read a valid code from their authenticator app.
+    two_factor_enabled = models.BooleanField(default=False)
+    totp_secret = models.CharField(max_length=64, blank=True, default="")
 
     disciplines = models.ManyToManyField(
         Discipline, through="UserDiscipline", related_name="users", blank=True
@@ -105,6 +113,13 @@ class User(AbstractUser):
     validated_at = models.DateTimeField(null=True, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # Email verification (level-2 sign-up flow). `email_verified_at` is set when
+    # the user clicks the link sent by `send_verification_email`. The compte stays
+    # in `PENDING_EMAIL` until then; login is blocked. `last_verification_sent_at`
+    # enforces a server-side cooldown to throttle resend abuse.
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    last_verification_sent_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []

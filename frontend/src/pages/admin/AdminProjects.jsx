@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, Activity, Loader2 } from 'lucide-react'
+import { CheckCircle2, Activity, Loader2, Trash2 } from 'lucide-react'
 import { projectToCard } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import { heritage } from '../../lib/api.js'
@@ -13,7 +13,7 @@ export default function AdminProjects() {
 
   const load = () => {
     setLoading(true)
-    heritage.projects()
+    heritage.projects({ page_size: 1000 })
       .then((data) => {
         const list = Array.isArray(data) ? data : (data.results || [])
         setItems(list.map(projectToCard))
@@ -26,6 +26,14 @@ export default function AdminProjects() {
   const publish = async (id) => {
     setBusyId(id)
     try { await heritage.publish(id); load() }
+    catch (e) { alert(e.message) }
+    finally { setBusyId(null) }
+  }
+
+  const deleteProject = async (id, name) => {
+    if (!window.confirm(`Supprimer définitivement le projet « ${name} » ? Cette action est irréversible.`)) return
+    setBusyId(id)
+    try { await heritage.deleteProject(id); load() }
     catch (e) { alert(e.message) }
     finally { setBusyId(null) }
   }
@@ -109,6 +117,11 @@ export default function AdminProjects() {
                           <CheckCircle2 size={16}/>
                         </button>
                       )}
+                      <button title="Supprimer" disabled={busyId===p.id}
+                              onClick={()=>deleteProject(p.id, p.name)}
+                              className="p-1.5 rounded hover:bg-red-100 text-red-600 disabled:opacity-50">
+                        <Trash2 size={16}/>
+                      </button>
                       {busyId===p.id && <Loader2 size={14} className="animate-spin text-sand-500"/>}
                     </div>
                   </td>

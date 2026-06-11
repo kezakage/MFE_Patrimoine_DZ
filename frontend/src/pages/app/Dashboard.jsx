@@ -41,7 +41,7 @@ function ExpertDashboard({ user, notifs }) {
   const [myProjects, setMyProjects] = useState([])
   const [stats, setStats] = useState({ total: 0, published: 0, in_progress: 0 })
   useEffect(() => {
-    heritage.projects()
+    heritage.projects({ mine: true })
       .then((data) => {
         const list = (Array.isArray(data) ? data : (data.results || [])).map(projectToCard)
         setMyProjects(list.slice(0, 3))

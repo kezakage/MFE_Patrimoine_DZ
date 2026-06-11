@@ -16,10 +16,9 @@ const STATUS_LABEL = {
 }
 
 function statusOf(u) {
-  if (u.is_suspended) return 'suspended'
-  if (u.account_status === 'rejected') return 'rejected'
-  if (u.role === 'expert' && !u.is_validated) return 'pending'
-  if (u.account_status === 'pending') return 'pending'
+  if (!u.is_active) return 'suspended'
+  if (u.status === 'rejected') return 'rejected'
+  if (u.status === 'pending' || u.status === 'pending_email') return 'pending'
   return 'active'
 }
 
@@ -33,7 +32,7 @@ export default function AdminUsers() {
 
   const load = () => {
     setLoading(true)
-    adminApi.users()
+    adminApi.users({ page_size: 1000 })
       .then((data) => setUsers(Array.isArray(data) ? data : (data.results || [])))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))

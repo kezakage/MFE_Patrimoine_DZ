@@ -8,12 +8,15 @@ import { useTranslation } from 'react-i18next'
 import Logo from '../components/Logo.jsx'
 import Avatar from '../components/Avatar.jsx'
 import LanguageSwitcher from '../components/LanguageSwitcher.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useNotifications } from '../context/NotificationsContext.jsx'
 
 const item = ({isActive}) =>
   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-    isActive ? 'bg-terracotta-50 text-terracotta-700' : 'text-sand-700 hover:bg-sand-100'
+    isActive
+      ? 'bg-terracotta-50 text-terracotta-700 dark:bg-terracotta-900/40 dark:text-terracotta-200'
+      : 'text-sand-700 hover:bg-sand-100 dark:text-sand-200 dark:hover:bg-sand-800'
   }`
 
 export default function AppLayout() {
@@ -26,9 +29,11 @@ export default function AppLayout() {
   const handleLogout = () => { logout(); nav('/') }
 
   return (
-    <div className="min-h-screen flex bg-sand-50">
-      <aside className="w-64 bg-white border-r border-sand-200 flex flex-col sticky top-0 h-screen">
-        <div className="px-4 h-16 flex items-center border-b border-sand-200"><Logo to="/app/tableau-de-bord" /></div>
+    <div className="min-h-screen flex bg-sand-50 dark:bg-sand-900">
+      <aside className="w-64 bg-white border-r border-sand-200 flex flex-col sticky top-0 h-screen
+                        dark:bg-sand-800 dark:border-sand-700">
+        <div className="px-4 h-16 flex items-center border-b border-sand-200
+                        dark:border-sand-700"><Logo to="/" /></div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-6 scrollbar-thin">
           <div>
@@ -71,8 +76,9 @@ export default function AppLayout() {
           )}
         </nav>
 
-        <div className="border-t border-sand-200 p-3">
-          <Link to="/app/profil" className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-sand-100">
+        <div className="border-t border-sand-200 p-3 dark:border-sand-700">
+          <Link to="/app/profil" className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-sand-100
+                                            dark:hover:bg-sand-700">
             <Avatar initials={user.avatar} size={36}/>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium truncate">{user.name}</div>
@@ -86,14 +92,16 @@ export default function AppLayout() {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-14 bg-white border-b border-sand-200 px-6 flex items-center justify-between sticky top-0 z-20">
-          <div className="text-sm text-sand-600">
-            {t('appNav.greeting')} <span className="font-medium text-sand-900">{user.name.split(' ')[0]}</span> 👋
+        <header className="h-14 bg-white border-b border-sand-200 px-6 flex items-center justify-between sticky top-0 z-20
+                           dark:bg-sand-800 dark:border-sand-700">
+          <div className="text-sm text-sand-600 dark:text-sand-300">
+            {t('appNav.greeting')} <span className="font-medium text-sand-900 dark:text-sand-50">{user.name.split(' ')[0]}</span> 👋
             {!user.validated && (
               <span className="ms-3 chip bg-amber-100 text-amber-800">{t('appNav.pendingValidation')}</span>
             )}
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <LanguageSwitcher />
             <Link to="/app/notifications" className="relative btn-ghost">
               <Bell size={18}/>

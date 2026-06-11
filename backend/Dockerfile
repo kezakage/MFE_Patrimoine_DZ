@@ -27,6 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         fonts-dejavu-core \
         fonts-noto-core \
         fonts-noto-cjk \
+        # Video transcoding + probing (apps.media.tasks.transcode_video)
+        ffmpeg \
         # i18n: makemessages + compilemessages
         gettext \
     && rm -rf /var/lib/apt/lists/*

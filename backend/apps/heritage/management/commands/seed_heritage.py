@@ -16,6 +16,39 @@ A = HeritageResource.ArchitecturalType
 C = HeritageResource.ClassificationLevel
 
 
+# Canonical cover photos resolved from Wikimedia Commons (CC-licensed, CDN-stable
+# upload.wikimedia.org URLs). Keyed on name_fr. Monuments without a suitable
+# Commons photo are omitted and fall back to a generated gradient in the UI.
+COVERS = {
+    "Bibliothèque Nationale d'Algérie": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Alger_-_Bibliotheque_Nationale%2C_front_2.jpg/1920px-Alger_-_Bibliotheque_Nationale%2C_front_2.jpg",
+    "Casbah d'Alger": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Architectural_and_Cultural_Heritage_of_the_Casbah_of_Algiers_6.jpg/1920px-Architectural_and_Cultural_Heritage_of_the_Casbah_of_Algiers_6.jpg",
+    "Djémila (Cuicul)": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Roman_Ruins_of_Djemila_in_S%C3%A9tif%2C_Algeria.jpg/1920px-Roman_Ruins_of_Djemila_in_S%C3%A9tif%2C_Algeria.jpg",
+    "Timgad (Thamugadi)": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Arch_of_Trajan_%28Timgad%29.jpg/1920px-Arch_of_Trajan_%28Timgad%29.jpg",
+    "Tipaza (site archéologique)": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/View_of_Tipasa_01.jpg/1920px-View_of_Tipasa_01.jpg",
+    "Vallée du M'Zab — Ghardaïa": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Ghardaia_depuis_Melika.jpg/1920px-Ghardaia_depuis_Melika.jpg",
+    "Qalâa des Béni Hammad": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Great_Mosque_of_El_Qal%27a_Beni_Hammad_minaret.png",
+    "Tassili n'Ajjer": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Esprit_nomade.JPG/1920px-Esprit_nomade.JPG",
+    "Mosquée Sidi Boumediene": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Tomb_of_Sidi_Boumediene_01.jpg/1920px-Tomb_of_Sidi_Boumediene_01.jpg",
+    "Mansourah": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/D%C3%A9coration_de_la_fa%C3%A7ade_sup%C3%A9rieure_du_minaret_de_la_Mosqu%C3%A9e_de_Mansourah%2C_Tlemcen.jpg/1920px-D%C3%A9coration_de_la_fa%C3%A7ade_sup%C3%A9rieure_du_minaret_de_la_Mosqu%C3%A9e_de_Mansourah%2C_Tlemcen.jpg",
+    "Grande Mosquée de Tlemcen": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Mihrab_de_la_Grande_Mosqu%C3%A9e_de_Tlemcen%2C_2026.jpg/1920px-Mihrab_de_la_Grande_Mosqu%C3%A9e_de_Tlemcen%2C_2026.jpg",
+    "Mosquée Ketchaoua": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Ketchaoua_Mosque_Algiers_Ke%C3%A7iova_Camisi_Cezayir-02.jpg/1920px-Ketchaoua_Mosque_Algiers_Ke%C3%A7iova_Camisi_Cezayir-02.jpg",
+    "Médersa Sidi El Kettani": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Fonds_Andr%C3%A9_Raymond_%281925-2011%29_-_Alg%C3%A9rie_-_Constantine_-_Cour_de_la_mosqu%C3%A9e_et_medersa_El-Kettani_%28M%C3%A9diHAL_4427038%29.jpg/1280px-Fonds_Andr%C3%A9_Raymond_%281925-2011%29_-_Alg%C3%A9rie_-_Constantine_-_Cour_de_la_mosqu%C3%A9e_et_medersa_El-Kettani_%28M%C3%A9diHAL_4427038%29.jpg",
+    "Mosquée El Djedid": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Djamaa_el_Djedid_-_1890.tif/lossy-page1-1920px-Djamaa_el_Djedid_-_1890.tif.jpg",
+    "Palais des Raïs (Bastion 23)": "https://upload.wikimedia.org/wikipedia/commons/8/82/Kasr_rais_algiers_bastion_23.png",
+    "Notre-Dame d'Afrique": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Notre_Dame_d%27Afrique2.jpg/1920px-Notre_Dame_d%27Afrique2.jpg",
+    "Hôtel des Postes (La Grande Poste)": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Metro_alger_grande_poste_11072015.jpg",
+    "Palais Ahmed Bey": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Ahmed_Bey_Palace_06.jpg/1920px-Ahmed_Bey_Palace_06.jpg",
+    "Mosquée Emir Abdelkader": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Emir_Abdelkader_Mosque_05.jpg/1920px-Emir_Abdelkader_Mosque_05.jpg",
+    "Pont Sidi M'Cid": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Pont_de_Sidi_M%27Cid_06.jpg/1920px-Pont_de_Sidi_M%27Cid_06.jpg",
+    "Fort de Santa Cruz": "https://upload.wikimedia.org/wikipedia/commons/4/40/Oran_Santa_Cruz.JPG",
+    "Palais du Bey Mohamed El Kebir": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/The_Bey%E2%80%99s_Palace_of_Oran_17.jpg/1920px-The_Bey%E2%80%99s_Palace_of_Oran_17.jpg",
+    "Cathédrale du Sacré-Cœur d'Oran": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Oran_%28Alg%C3%A9rie%29_Ancienne_cath%C3%A9drale_du_Sacr%C3%A9-C%C5%93ur_-_Abside_et_coupole.jpg/1920px-Oran_%28Alg%C3%A9rie%29_Ancienne_cath%C3%A9drale_du_Sacr%C3%A9-C%C5%93ur_-_Abside_et_coupole.jpg",
+    "Mausolée Royal de Maurétanie (Tombeau de la Chrétienne)": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Royal_Mausoleum_of_Mauretania_02.jpg/1920px-Royal_Mausoleum_of_Mauretania_02.jpg",
+    "Théâtre Romain de Cherchell": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Ancient_Roman_theater_%28Cherchell%29_01.jpg/1920px-Ancient_Roman_theater_%28Cherchell%29_01.jpg",
+    "Médracen": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Royal_Mausoleum_of_Madghacen%2C_the_oldest_mausoleum_in_the_Maghreb_made_for_an_unknown_Numidian_Amazigh_king_who_lived_in_the_4th_or_3rd_century_BC%2C_Algeria_-_54274008897.jpg/1920px-thumbnail.jpg",
+}
+
+
 SEED = [
     # ---------- 7 UNESCO World Heritage Sites ----------
     {
@@ -275,12 +308,37 @@ SEED = [
 ]
 
 
+# Heuristic mapping architectural type → contributing disciplines.
+# Names must match accounts/fixtures/disciplines.json. Missing entries (or a
+# missing Discipline row) silently no-op, so the seed stays robust if an admin
+# has renamed a discipline.
+DISCIPLINES_BY_TYPE = {
+    A.MOSQUE: ["Architecture", "Histoire", "Arts décoratifs"],
+    A.MEDERSA: ["Architecture", "Histoire", "Épigraphie"],
+    A.CASBAH: ["Architecture", "Urbanisme", "Anthropologie"],
+    A.PALACE: ["Architecture", "Histoire", "Arts décoratifs"],
+    A.FORTIFICATION: ["Architecture", "Histoire", "Archéologie"],
+    A.CHURCH: ["Architecture", "Histoire"],
+    A.SYNAGOGUE: ["Architecture", "Histoire"],
+    A.MAUSOLEUM: ["Archéologie", "Architecture", "Histoire"],
+    A.TRADITIONAL_HOUSE: ["Architecture", "Anthropologie", "Conservation & Restauration"],
+    A.ARCHAEOLOGICAL_SITE: ["Archéologie", "Histoire", "Épigraphie"],
+    A.OTHER: ["Architecture", "Histoire"],
+}
+
+
 class Command(BaseCommand):
     help = "Seed 30 Algerian heritage resources (7 UNESCO + 23 classified)."
 
     def handle(self, *args, **options):
+        # Local import keeps the seed file importable even before the accounts
+        # migrations have run (e.g. fresh DB inspection in tests).
+        from apps.accounts.models import Discipline
+        disciplines_by_name = {d.name_fr: d for d in Discipline.objects.all()}
+
         created, updated = 0, 0
         for entry in SEED:
+            entry = {**entry, "cover_image_url": COVERS.get(entry["name_fr"], "")}
             obj, was_created = HeritageResource.objects.update_or_create(
                 name_fr=entry["name_fr"],
                 wilaya=entry["wilaya"],
@@ -290,6 +348,19 @@ class Command(BaseCommand):
                 created += 1
             else:
                 updated += 1
+
+            # Tag contributing disciplines based on architectural type. We
+            # only set when the M2M is empty so an admin's manual curation
+            # isn't overwritten by a re-run of the seed.
+            if disciplines_by_name and not obj.disciplines.exists():
+                wanted = [
+                    disciplines_by_name[name]
+                    for name in DISCIPLINES_BY_TYPE.get(entry["architectural_type"], [])
+                    if name in disciplines_by_name
+                ]
+                if wanted:
+                    obj.disciplines.set(wanted)
+
         self.stdout.write(self.style.SUCCESS(
             f"Heritage seed done — {len(SEED)} entries: created={created}, updated={updated}"
         ))

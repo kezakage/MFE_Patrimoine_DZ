@@ -1,0 +1,6 @@
+# Documentation toolchain (kept out of the runtime image).
+#   pip install -r docs/requirements.txt
+#   mkdocs serve         # live preview on http://127.0.0.1:8000
+#   mkdocs build         # static site → ./site
+mkdocs-material==9.5.39
+mkdocs-static-i18n==1.2.3
