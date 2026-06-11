@@ -11,19 +11,6 @@ jobs:
     name: Backend — pytest
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgis/postgis:16-3.4
-        env:
-          POSTGRES_DB: patrimoinehub_test
-          POSTGRES_USER: patrimoine
-          POSTGRES_PASSWORD: patrimoine
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
@@ -36,7 +23,7 @@ jobs:
     env:
       DJANGO_SECRET_KEY: ci-test-secret-key-32-bytes-minimum-aaaa
       DJANGO_DEBUG: "0"
-      DJANGO_ALLOWED_HOSTS: "*"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
       POSTGRES_DB: patrimoinehub_test
@@ -54,13 +41,19 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install system dependencies (GIS + WeasyPrint)
+      - name: Install system dependencies (GIS + WeasyPrint + PostgreSQL 16 + pgvector)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             gdal-bin libgdal-dev binutils libproj-dev \
             libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libgdk-pixbuf-2.0-0 \
-            libffi-dev shared-mime-info fonts-dejavu-core fonts-noto-core
+            libffi-dev shared-mime-info fonts-dejavu-core fonts-noto-core \
+            postgresql-16 postgresql-16-postgis-3 postgresql-16-pgvector
+          sudo systemctl start postgresql
+          sudo -u postgres psql -c "CREATE USER patrimoine WITH PASSWORD 'patrimoine';"
+          sudo -u postgres psql -c "CREATE DATABASE patrimoinehub_test OWNER patrimoine;"
+          sudo -u postgres psql -d patrimoinehub_test -c "CREATE EXTENSION postgis;"
+          sudo -u postgres psql -d patrimoinehub_test -c "CREATE EXTENSION vector;"
 
       - name: Install Python dependencies
         working-directory: backend
