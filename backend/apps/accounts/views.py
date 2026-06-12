@@ -206,6 +206,39 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         user.save(update_fields=["status", "is_active"])
         return Response(UserSerializer(user).data)
 
+    def destroy(self, request, *args, **kwargs):
+        """Permanently delete a user account.
+
+        Two safeguards:
+          - Admins cannot delete their own account — that would lock them out
+            and risk leaving the platform with no administrator.
+          - Many records (projects, page versions, discussions, media,
+            annotations…) reference the user with ``on_delete=PROTECT``. A hard
+            delete of an active contributor would raise ``ProtectedError``; we
+            translate that into a clean 409 with guidance to suspend instead.
+        """
+        from django.db.models import ProtectedError
+
+        user = self.get_object()
+        if user == request.user:
+            return Response(
+                {"detail": "Vous ne pouvez pas supprimer votre propre compte."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {
+                    "detail": (
+                        "Impossible de supprimer cet utilisateur : il a des "
+                        "contributions liées (projets, médias, discussions…). "
+                        "Suspendez plutôt son compte."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
 
 class TwoFactorSetupView(APIView):
     """

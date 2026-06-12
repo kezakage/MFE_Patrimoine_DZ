@@ -23,8 +23,24 @@ from .serializers import (
 
 class HeritageResourceViewSet(viewsets.ModelViewSet):
     """Catalog of architectural heritage resources (monuments)."""
-    queryset = HeritageResource.objects.all()
     permission_classes = (permissions.IsAuthenticatedOrReadOnly, IsExpertOrReadOnly)
+
+    def get_queryset(self):
+        """
+        Public (list/retrieve) — only resources whose project is published.
+        Write actions (create/update/delete) — all resources, so experts can
+        still edit their own drafts.
+        Admin — all resources regardless of project status.
+        """
+        u = self.request.user
+        if u and u.is_authenticated and getattr(u, 'role', None) == 'admin':
+            return HeritageResource.objects.all()
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return HeritageResource.objects.all()
+        # Public list/retrieve/geojson/search: only published projects
+        return HeritageResource.objects.filter(
+            project__status='published'
+        )
     filterset_class = HeritageResourceFilter
     search_fields = ("name_fr", "name_ar", "description", "wilaya", "commune")
     ordering_fields = ("name_fr", "created_at", "updated_at")
@@ -40,7 +56,7 @@ class HeritageResourceViewSet(viewsets.ModelViewSet):
         FeatureCollection of all heritage resources with a geo_point.
         Lightweight payload tailored for Leaflet markers.
         """
-        qs = HeritageResource.objects.exclude(geo_point__isnull=True)
+        qs = self.get_queryset().exclude(geo_point__isnull=True)
         # Allow the same filterset (period/wilaya/...) to apply
         qs = self.filter_queryset(qs)
         features = []

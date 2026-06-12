@@ -21,7 +21,8 @@ export default function AutoAnnotation() {
   const [step, setStep] = useState('upload') // upload | analyze | review | error
   const [errorMsg, setErrorMsg] = useState('')
   const [media, setMedia] = useState(null)
-  const [proposals, setProposals] = useState([]) // [{label, score, status}]
+  const [proposals, setProposals] = useState([]) // CLIP: [{label, score, status}]
+  const [detections, setDetections] = useState([]) // YOLO: [{label, score, box}]
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef(null)
 
@@ -29,6 +30,7 @@ export default function AutoAnnotation() {
     setStep('upload')
     setMedia(null)
     setProposals([])
+    setDetections([])
     setErrorMsg('')
   }
 
@@ -67,6 +69,7 @@ export default function AutoAnnotation() {
         setProposals(
           (m.ai_tags || []).map((t, i) => ({ ...t, id: i, status: 'pending' })),
         )
+        setDetections(m.ai_detections || [])
         setStep('review')
         return
       }
@@ -120,7 +123,8 @@ export default function AutoAnnotation() {
       <div>
         <h1 className="section-title flex items-center gap-2"><ImagePlus/>Annotation automatique</h1>
         <p className="section-subtitle">
-          Uploadez une image — l'IA (CLIP) propose des tags architecturaux à valider par un expert.
+          Uploadez une image — CLIP propose des tags patrimoniaux et YOLOv8 détecte les objets
+          (boîtes affichées sur l'image). L'expert valide ensuite les propositions.
         </p>
       </div>
 
@@ -150,9 +154,11 @@ export default function AutoAnnotation() {
             <Sparkles size={28}/>
           </div>
           <div className="mt-4 font-medium">Analyse en cours...</div>
-          <p className="text-sand-600 text-sm">CLIP encode l'image et la compare à ~28 labels patrimoniaux</p>
+          <p className="text-sand-600 text-sm">
+            CLIP classe l'image (28 labels patrimoniaux) — YOLOv8 détecte les objets.
+          </p>
           <div className="inline-flex items-center gap-2 mt-3 text-xs text-sand-500">
-            <Loader2 className="animate-spin" size={14}/>Première analyse plus longue (chargement du modèle)
+            <Loader2 className="animate-spin" size={14}/>Première analyse plus longue (chargement des modèles)
           </div>
         </div>
       )}
@@ -170,21 +176,62 @@ export default function AutoAnnotation() {
           <div className="lg:col-span-2 card p-4">
             <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-sand-100">
               <img
-                src={mediaUrl(media.thumbnail_url || media.file_url)}
+                src={mediaUrl(media.file_url || media.thumbnail_url)}
                 alt="Image analysée"
-                className="w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain"
               />
+              {detections.length > 0 && media.width && media.height && (
+                <svg
+                  viewBox={`0 0 ${media.width} ${media.height}`}
+                  preserveAspectRatio="xMidYMid meet"
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                >
+                  {detections.map((d, i) => {
+                    const [x1, y1, x2, y2] = d.box || [0, 0, 0, 0]
+                    const w = Math.max(0, x2 - x1)
+                    const h = Math.max(0, y2 - y1)
+                    return (
+                      <g key={i}>
+                        <rect
+                          x={x1} y={y1} width={w} height={h}
+                          fill="none"
+                          stroke="#e11d48"
+                          strokeWidth={Math.max(2, media.width / 400)}
+                        />
+                        <rect
+                          x={x1}
+                          y={Math.max(0, y1 - media.height * 0.04)}
+                          width={Math.max(60, (d.label.length + 6) * (media.width / 80))}
+                          height={media.height * 0.04}
+                          fill="#e11d48"
+                        />
+                        <text
+                          x={x1 + media.width * 0.005}
+                          y={Math.max(media.height * 0.03, y1 - media.height * 0.01)}
+                          fill="white"
+                          fontSize={media.height * 0.028}
+                          fontFamily="sans-serif"
+                        >
+                          {d.label} {Math.round(d.score * 100)}%
+                        </text>
+                      </g>
+                    )
+                  })}
+                </svg>
+              )}
             </div>
             <div className="mt-3 text-xs text-sand-500">
-              Image analysée par CLIP (zero-shot, multilingual). {proposals.length} tag(s) au-dessus du seuil de confiance.
+              CLIP : {proposals.length} tag(s) patrimonial(aux).
+              {' '}YOLOv8 : {detections.length} objet(s) détecté(s) (boîtes rouges sur l'image).
             </div>
           </div>
 
           <div className="card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Propositions IA</h3>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-semibold">Propositions CLIP</h3>
               <span className="chip bg-amber-100 text-amber-800">{pendingCount} à valider</span>
             </div>
+            <div className="text-xs text-sand-500 mb-3">Tags patrimoniaux globaux (à valider).</div>
             {proposals.length === 0 ? (
               <div className="text-sand-500 text-sm py-4">Aucune proposition au-dessus du seuil de confiance.</div>
             ) : (
@@ -227,6 +274,26 @@ export default function AutoAnnotation() {
             </button>
             {errorMsg && <div className="text-xs text-red-600 mt-2 text-center">{errorMsg}</div>}
             <p className="text-xs text-sand-500 mt-2 text-center">La validation expert est obligatoire avant publication.</p>
+
+            <div className="mt-5 pt-4 border-t border-sand-100">
+              <h3 className="font-semibold text-sm">Détections YOLOv8</h3>
+              <div className="text-xs text-sand-500 mb-2">Objets localisés (COCO, 80 classes).</div>
+              {detections.length === 0 ? (
+                <div className="text-sand-500 text-xs py-2">Aucun objet détecté au-dessus du seuil.</div>
+              ) : (
+                <ul className="space-y-1">
+                  {detections.map((d, i) => (
+                    <li key={i} className="flex items-center justify-between text-xs py-1">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-rose-500"/>
+                        <span className="font-medium">{d.label}</span>
+                      </span>
+                      <span className="text-sand-500">{Math.round(d.score * 100)}%</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}

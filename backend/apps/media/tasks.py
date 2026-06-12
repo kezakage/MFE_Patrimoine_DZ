@@ -2,8 +2,9 @@
 Celery tasks for media processing.
 
   - generate_thumbnail: extracts a thumbnail and image dimensions for an image upload.
-  - annotate_image: runs CLIP zero-shot classification, stores top tags and creates
-    a pending Annotation suggesting the dominant label (requires expert validation).
+  - annotate_image: runs CLIP zero-shot classification (heritage tags) AND YOLOv8
+    object detection (bounding boxes); stores both and creates a pending Annotation
+    suggesting the dominant CLIP label for expert validation.
   - transcode_video: probes a video for metadata, extracts a poster thumbnail and
     transcodes the source to a streamable H.264/AAC MP4 (faststart) via FFmpeg.
 """
@@ -64,9 +65,17 @@ def generate_thumbnail(media_id: int):
 @shared_task
 def annotate_image(media_id: int):
     """
-    Run CLIP zero-shot classification on an image media and persist the top
-    tags into `ai_tags`. Also creates a pending AI Annotation with the top
-    label so an expert can validate or reject it from the UI.
+    Run the dual-model auto-annotation pipeline on an image media:
+
+      1. CLIP zero-shot classification → heritage tags stored in `ai_tags`.
+      2. YOLOv8 object detection      → bounding boxes stored in `ai_detections`.
+
+    CLIP is the load-bearing step (failure flips `ai_status` to FAILED).
+    YOLO runs best-effort afterwards — a YOLO failure only logs a warning and
+    leaves `ai_detections` empty, so CLIP results are still surfaced.
+
+    Also creates a pending AI Annotation with the top CLIP label so an
+    expert can validate or reject it from the UI.
     """
     from .models import Annotation, Media
 
@@ -88,6 +97,7 @@ def annotate_image(media_id: int):
         media.save(update_fields=["ai_status"])
         return
 
+    # Read the image bytes once; both CLIP and YOLO consume them.
     try:
         media.file.open("rb")
         data = media.file.read()
@@ -103,9 +113,20 @@ def annotate_image(media_id: int):
         except Exception:
             pass
 
+    # YOLOv8 — best-effort detection pass. Never fails the task.
+    detections: list[dict] = []
+    try:
+        from .services.yolo_detector import detect_objects
+        detections = detect_objects(data, min_score=0.30, max_detections=20)
+    except ImportError:
+        logger.warning("YOLO detector unavailable — ultralytics not installed?")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("YOLO detection failed for media %s: %s", media_id, exc)
+
     media.ai_tags = tags
+    media.ai_detections = detections
     media.ai_status = Media.AiStatus.DONE
-    media.save(update_fields=["ai_tags", "ai_status"])
+    media.save(update_fields=["ai_tags", "ai_detections", "ai_status"])
 
     # Best-effort: create a pending Annotation for the top label so it shows
     # up in the validation queue. Falls back silently if uploader cannot be

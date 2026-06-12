@@ -39,6 +39,7 @@ export default function ProjectsList() {
       mine: scope === 'mine' ? true : undefined,
       search: q || undefined,
       status: status || undefined,
+      page_size: 1000,
     })
       .then((data) => {
         if (cancelled) return

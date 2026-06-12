@@ -32,13 +32,13 @@ class MediaSerializer(serializers.ModelSerializer):
             "thumbnail", "thumbnail_url",
             "caption", "license",
             "longitude", "latitude",
-            "ai_tags", "ai_status",
+            "ai_tags", "ai_detections", "ai_status",
             "created_at",
         )
         read_only_fields = (
             "uploader", "mime_type", "size_bytes",
             "width", "height", "duration_seconds",
-            "thumbnail", "ai_tags", "ai_status", "created_at",
+            "thumbnail", "ai_tags", "ai_detections", "ai_status", "created_at",
         )
 
     def get_file_url(self, obj):
