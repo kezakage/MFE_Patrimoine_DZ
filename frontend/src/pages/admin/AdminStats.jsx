@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { TrendingUp, Users as UsersIcon, FolderKanban, FileCheck2, Loader2 } from 'lucide-react'
 import { adminApi, heritage } from '../../lib/api.js'
+import { usePolling } from '../../lib/usePolling.js'
 
 export default function AdminStats() {
   const [users, setUsers] = useState([])
@@ -8,15 +9,19 @@ export default function AdminStats() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     Promise.all([adminApi.users({ page_size: 1000 }), heritage.projects({ page_size: 1000 })])
       .then(([u, p]) => {
         setUsers(Array.isArray(u) ? u : (u.results || []))
         setProjects(Array.isArray(p) ? p : (p.results || []))
+        setError(null)
       })
       .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => { if (!silent) setLoading(false) })
+  }
+  useEffect(() => { load() }, [])
+  usePolling(() => load(true))
 
   const counters = useMemo(() => ({
     projects: projects.length,

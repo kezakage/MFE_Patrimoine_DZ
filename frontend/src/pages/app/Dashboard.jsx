@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotifications } from '../../context/NotificationsContext.jsx'
 import { heritage, adminApi } from '../../lib/api.js'
+import { usePolling } from '../../lib/usePolling.js'
 import { projectToCard } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
 
@@ -40,7 +41,7 @@ function ExpertDashboard({ user, notifs }) {
   const { t } = useTranslation()
   const [myProjects, setMyProjects] = useState([])
   const [stats, setStats] = useState({ total: 0, published: 0, in_progress: 0 })
-  useEffect(() => {
+  const load = () => {
     heritage.projects({ mine: true })
       .then((data) => {
         const list = (Array.isArray(data) ? data : (data.results || [])).map(projectToCard)
@@ -52,7 +53,9 @@ function ExpertDashboard({ user, notifs }) {
         })
       })
       .catch(() => {})
-  }, [])
+  }
+  useEffect(() => { load() }, [])
+  usePolling(load)
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between flex-wrap gap-3">
@@ -154,9 +157,9 @@ function AdminDashboard({ notifs }) {
   const [stats, setStats] = useState(null)
   const [validating, setValidating] = useState({})
 
-  useEffect(() => {
-    adminApi.stats().then(setStats).catch(() => {})
-  }, [])
+  const load = () => adminApi.stats().then(setStats).catch(() => {})
+  useEffect(() => { load() }, [])
+  usePolling(load)
 
   const handleValidate = async (userId, decision) => {
     setValidating(v => ({ ...v, [userId]: true }))

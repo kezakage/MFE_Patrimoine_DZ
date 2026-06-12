@@ -224,6 +224,7 @@ export const adminApi = {
   validateUser: (id, action = 'approve') =>
     api.post(`/auth/admin/users/${id}/validate/`, { decision: action }),
   suspend: (id) => api.post(`/auth/admin/users/${id}/suspend/`),
+  deleteUser: (id) => api.del(`/auth/admin/users/${id}/`),
   disciplines: () => api.get('/auth/disciplines/'),
   stats: () => api.get('/auth/admin/stats/'),
 }

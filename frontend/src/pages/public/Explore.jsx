@@ -27,6 +27,7 @@ export default function Explore() {
       period: period || undefined,
       wilaya: region || undefined,
       architectural_type: type || undefined,
+      page_size: 1000,
     }
     Promise.all([
       heritage.resources(filters),

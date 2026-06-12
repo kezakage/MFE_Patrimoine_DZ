@@ -61,6 +61,11 @@ sentence-transformers==3.0.1
 langchain==0.2.16
 langchain-mistralai==0.1.13
 
+# Object detection — YOLOv8 (ultralytics) used alongside CLIP for auto-annotation.
+# CLIP classifies the whole image (heritage type), YOLO localises generic objects
+# inside the frame (person, building, vehicle…) so the UI can draw boxes.
+ultralytics==8.2.103
+
 # Static files in production — WhiteNoise serves /static/ from the WSGI/ASGI
 # process so we don't need a separate nginx in front of Daphne.
 whitenoise==6.7.0

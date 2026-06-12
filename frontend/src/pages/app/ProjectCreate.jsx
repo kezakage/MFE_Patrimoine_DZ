@@ -12,7 +12,7 @@ export default function ProjectCreate() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [files, setFiles] = useState([])
-  const [coverIndex, setCoverIndex] = useState(null)
+  const [coverFile, setCoverFile] = useState(null)
   const [data, setData] = useState({
     name: '',
     name_ar: '',
@@ -66,8 +66,20 @@ export default function ProjectCreate() {
         })
       }
 
-      // 4. Optional media uploads
+      // 4. Thumbnail (cover) upload — separate from the other media
       let coverMediaId = null
+      if (coverFile) {
+        const fd = new FormData()
+        fd.append('file', coverFile)
+        fd.append('project', project.id)
+        fd.append('media_type', 'image')
+        try {
+          const uploaded = await mediaApi.upload(fd)
+          if (uploaded?.id) coverMediaId = uploaded.id
+        } catch (_) { /* tolerate cover failure */ }
+      }
+
+      // 5. Other project media uploads
       for (let i = 0; i < files.length; i++) {
         const f = files[i]
         const fd = new FormData()
@@ -77,12 +89,11 @@ export default function ProjectCreate() {
                    : f.type.startsWith('video/') ? 'video' : 'document'
         fd.append('media_type', kind)
         try {
-          const uploaded = await mediaApi.upload(fd)
-          if (i === coverIndex && uploaded?.id) coverMediaId = uploaded.id
+          await mediaApi.upload(fd)
         } catch (_) { /* tolerate single failure */ }
       }
 
-      // 5. Mark the chosen image as the project's main photo
+      // 6. Mark the chosen image as the project's main photo
       if (coverMediaId) {
         try { await heritage.updateProject(project.id, { cover_media_id: coverMediaId }) } catch (_) {}
       }
@@ -170,50 +181,60 @@ export default function ProjectCreate() {
         )}
 
         {step === 1 && (
-          <div>
-            <label className="label">Médias (images, plans, documents)</label>
-            <div className="border-2 border-dashed border-sand-300 rounded-xl p-10 text-center bg-sand-50">
-              <Upload className="mx-auto text-sand-500" size={32}/>
-              <p className="mt-3 text-sand-700">Glissez-déposez vos fichiers ou</p>
-              <input id="filepick" type="file" multiple className="hidden"
-                     onChange={(e) => {
-                       const picked = Array.from(e.target.files || [])
-                       setFiles(picked)
-                       const firstImage = picked.findIndex(f => f.type.startsWith('image/'))
-                       setCoverIndex(firstImage >= 0 ? firstImage : null)
-                     }}/>
-              <label htmlFor="filepick" className="btn-primary mt-3 inline-flex"><ImageIcon size={16}/>Parcourir</label>
-              <p className="text-xs text-sand-500 mt-3">JPG, PNG, PDF — max 50 Mo / fichier</p>
+          <div className="space-y-8">
+            {/* Miniature / cover image — chosen separately */}
+            <div>
+              <label className="label">Miniature du projet (photo principale)</label>
+              <p className="text-sm text-sand-600 mb-3">Cette image représentera le projet dans les listes et l'explorateur. Une seule image.</p>
+              <div className="border-2 border-dashed border-terracotta-300 rounded-xl p-6 text-center bg-terracotta-50/40">
+                {coverFile ? (
+                  <div className="flex items-center justify-center gap-4">
+                    <img src={URL.createObjectURL(coverFile)} alt="" className="w-24 h-24 object-cover rounded-lg border border-sand-200"/>
+                    <div className="text-left min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="chip bg-terracotta-100 text-terracotta-700 shrink-0"><Star size={12}/>Miniature</span>
+                        <span className="truncate text-sm">{coverFile.name}</span>
+                      </div>
+                      <button type="button" onClick={() => setCoverFile(null)}
+                              className="text-xs text-red-600 hover:underline mt-2">Retirer</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <ImageIcon className="mx-auto text-terracotta-400" size={28}/>
+                    <p className="mt-2 text-sand-700 text-sm">Choisissez l'image de couverture</p>
+                    <input id="coverpick" type="file" accept="image/*" className="hidden"
+                           onChange={(e) => setCoverFile(e.target.files?.[0] || null)}/>
+                    <label htmlFor="coverpick" className="btn-primary mt-3 inline-flex"><ImageIcon size={16}/>Choisir la miniature</label>
+                    <p className="text-xs text-sand-500 mt-2">JPG, PNG — max 50 Mo</p>
+                  </>
+                )}
+              </div>
             </div>
-            {files.some(f => f.type.startsWith('image/')) && (
-              <p className="text-xs text-sand-500 mt-3">Choisissez la photo principale qui représentera le projet dans les listes et l'explorateur.</p>
-            )}
-            {files.length > 0 && (
-              <ul className="mt-4 text-sm space-y-1">
-                {files.map((f, i) => {
-                  const isImage = f.type.startsWith('image/')
-                  return (
+
+            {/* Other project media — separate from the cover */}
+            <div>
+              <label className="label">Autres médias (images, plans, documents)</label>
+              <p className="text-sm text-sand-600 mb-3">Ajoutez les médias complémentaires du projet.</p>
+              <div className="border-2 border-dashed border-sand-300 rounded-xl p-10 text-center bg-sand-50">
+                <Upload className="mx-auto text-sand-500" size={32}/>
+                <p className="mt-3 text-sand-700">Glissez-déposez vos fichiers ou</p>
+                <input id="filepick" type="file" multiple className="hidden"
+                       onChange={(e) => setFiles(Array.from(e.target.files || []))}/>
+                <label htmlFor="filepick" className="btn-primary mt-3 inline-flex"><ImageIcon size={16}/>Parcourir</label>
+                <p className="text-xs text-sand-500 mt-3">JPG, PNG, PDF — max 50 Mo / fichier</p>
+              </div>
+              {files.length > 0 && (
+                <ul className="mt-4 text-sm space-y-1">
+                  {files.map((f, i) => (
                     <li key={i} className="flex items-center justify-between gap-3 border-b py-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {coverIndex === i && (
-                          <span className="chip bg-terracotta-100 text-terracotta-700 shrink-0">Photo principale</span>
-                        )}
-                        <span className="truncate">{f.name}</span>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {isImage && coverIndex !== i && (
-                          <button type="button" onClick={() => setCoverIndex(i)}
-                                  className="text-xs text-terracotta-700 hover:underline inline-flex items-center gap-1">
-                            <Star size={12}/>Définir comme principale
-                          </button>
-                        )}
-                        <span className="text-sand-500">{(f.size/1024).toFixed(0)} Ko</span>
-                      </div>
+                      <span className="truncate">{f.name}</span>
+                      <span className="text-sand-500 shrink-0">{(f.size/1024).toFixed(0)} Ko</span>
                     </li>
-                  )
-                })}
-              </ul>
-            )}
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         )}
 

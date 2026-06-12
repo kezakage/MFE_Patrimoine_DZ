@@ -4,6 +4,7 @@ import { CheckCircle2, Activity, Loader2, Trash2 } from 'lucide-react'
 import { projectToCard } from '../../data/projects.js'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import { heritage } from '../../lib/api.js'
+import { usePolling } from '../../lib/usePolling.js'
 
 export default function AdminProjects() {
   const [items, setItems] = useState([])
@@ -11,17 +12,19 @@ export default function AdminProjects() {
   const [error, setError] = useState(null)
   const [busyId, setBusyId] = useState(null)
 
-  const load = () => {
-    setLoading(true)
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     heritage.projects({ page_size: 1000 })
       .then((data) => {
         const list = Array.isArray(data) ? data : (data.results || [])
         setItems(list.map(projectToCard))
+        setError(null)
       })
       .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+      .finally(() => { if (!silent) setLoading(false) })
   }
   useEffect(() => { load() }, [])
+  usePolling(() => load(true))
 
   const publish = async (id) => {
     setBusyId(id)

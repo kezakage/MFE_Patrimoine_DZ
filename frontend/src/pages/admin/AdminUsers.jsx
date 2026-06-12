@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, ShieldCheck, ShieldX, Pause, Loader2 } from 'lucide-react'
+import { Search, ShieldCheck, ShieldX, Pause, Trash2, Loader2 } from 'lucide-react'
 import { adminApi } from '../../lib/api.js'
+import { usePolling } from '../../lib/usePolling.js'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 const STATUS_CHIP = {
   active: 'bg-emerald-100 text-emerald-800',
@@ -23,6 +25,7 @@ function statusOf(u) {
 }
 
 export default function AdminUsers() {
+  const { user: currentUser } = useAuth()
   const [tab, setTab] = useState('tous')
   const [q, setQ] = useState('')
   const [users, setUsers] = useState([])
@@ -30,14 +33,15 @@ export default function AdminUsers() {
   const [error, setError] = useState(null)
   const [busyId, setBusyId] = useState(null)
 
-  const load = () => {
-    setLoading(true)
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     adminApi.users({ page_size: 1000 })
-      .then((data) => setUsers(Array.isArray(data) ? data : (data.results || [])))
+      .then((data) => { setUsers(Array.isArray(data) ? data : (data.results || [])); setError(null) })
       .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+      .finally(() => { if (!silent) setLoading(false) })
   }
   useEffect(() => { load() }, [])
+  usePolling(() => load(true))
 
   const list = useMemo(() => {
     return users
@@ -58,6 +62,12 @@ export default function AdminUsers() {
     try { await fn(); load() }
     catch (e) { alert(e.message) }
     finally { setBusyId(null) }
+  }
+
+  const remove = (u) => {
+    const name = u.full_name || `${u.first_name||''} ${u.last_name||''}`.trim() || u.email
+    if (!window.confirm(`Supprimer définitivement le compte de « ${name} » ? Cette action est irréversible.`)) return
+    act(u.id, () => adminApi.deleteUser(u.id))
   }
 
   return (
@@ -143,6 +153,13 @@ export default function AdminUsers() {
                                   onClick={()=>act(u.id, ()=>adminApi.suspend(u.id))}
                                   className="p-1.5 rounded hover:bg-amber-100 text-amber-700 disabled:opacity-50">
                             <Pause size={16}/>
+                          </button>
+                        )}
+                        {u.id !== currentUser?.id && (
+                          <button title="Supprimer" disabled={busyId===u.id}
+                                  onClick={()=>remove(u)}
+                                  className="p-1.5 rounded hover:bg-red-100 text-red-600 disabled:opacity-50">
+                            <Trash2 size={16}/>
                           </button>
                         )}
                         {busyId===u.id && <Loader2 size={14} className="animate-spin text-sand-500"/>}

@@ -51,6 +51,11 @@ class Media(models.Model):
     # Format: [{"label": "mosquée", "score": 0.87}, ...]
     ai_tags = models.JSONField(default=list, blank=True)
 
+    # YOLOv8 object detections — bounding boxes complementing CLIP tags.
+    # Format: [{"label": "person", "score": 0.91, "box": [x1, y1, x2, y2]}, ...]
+    # Coordinates are absolute pixel values in the original image.
+    ai_detections = models.JSONField(default=list, blank=True)
+
     class AiStatus(models.TextChoices):
         PENDING = "pending", _("Pending")
         DONE = "done", _("Done")
